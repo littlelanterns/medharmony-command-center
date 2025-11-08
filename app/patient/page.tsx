@@ -2,6 +2,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
+import Header from '@/components/shared/Header';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import StatusBadge from '@/components/shared/StatusBadge';
+import AppointmentCard from '@/components/patient/AppointmentCard';
 
 export default function PatientDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -9,6 +14,7 @@ export default function PatientDashboard() {
   const [karmaScore, setKarmaScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [hasPreferences, setHasPreferences] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -45,9 +51,18 @@ export default function PatientDashboard() {
       .eq('id', patientId)
       .single();
 
+    // Check if patient has set preferences
+    const { data: prefsData } = await supabase
+      .from('availability_preferences')
+      .select('id')
+      .eq('patient_id', patientId)
+      .eq('is_active', true)
+      .limit(1);
+
     if (ordersData) setOrders(ordersData);
     if (apptData) setAppointments(apptData);
     if (patientData) setKarmaScore(patientData.karma_score);
+    setHasPreferences((prefsData?.length || 0) > 0);
     setLoading(false);
   };
 
@@ -100,15 +115,39 @@ export default function PatientDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-[#002C5F] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold">Patient Dashboard</h1>
-          <p className="text-white/80 mt-1">Welcome, {user?.name || 'Patient'}</p>
-        </div>
-      </header>
+      <Header
+        title="Patient Dashboard"
+        userName={user?.name || 'Patient'}
+        actionButton={{
+          label: hasPreferences ? 'Update My Availability' : 'Set My Availability',
+          href: '/patient/preferences',
+          variant: 'secondary',
+        }}
+      />
 
       <main className="max-w-7xl mx-auto p-8">
+        {/* Alert for missing preferences */}
+        {!hasPreferences && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-lg">
+            <div className="flex items-start">
+              <svg className="w-6 h-6 text-blue-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h2 className="text-xl font-bold text-blue-800 mb-2">
+                  Set Your Availability Preferences
+                </h2>
+                <p className="text-blue-700 mb-3">
+                  Help our AI find the perfect appointment times by setting your availability preferences. This only takes a minute!
+                </p>
+                <Link href="/patient/preferences" className="btn-primary text-sm py-2 px-6">
+                  Set Preferences Now
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Alert for unscheduled orders */}
         {unscheduledOrders.length > 0 && (
           <div className="bg-red-50 border-l-4 border-red-500 p-6 mb-8 rounded-r-lg">
@@ -130,20 +169,26 @@ export default function PatientDashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Link href="/patient/karma" className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition cursor-pointer">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-gray-600 font-semibold">Your Karma Score</div>
-              <span className="text-2xl">⭐</span>
-            </div>
-            <div className="text-4xl font-bold text-[#50C878]">{karmaScore}/100</div>
-            <div className="mt-2 text-sm text-gray-500">
-              {karmaScore >= 90 ? 'Exemplary Patient' :
-               karmaScore >= 75 ? 'Excellent Patient' :
-               karmaScore >= 60 ? 'Good Patient' : 'Building Karma'}
-            </div>
+          <Link href="/patient/karma">
+            <Card hoverable>
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-gray-600 font-semibold">Your Karma Score</div>
+                <span className="text-2xl">⭐</span>
+              </div>
+              <div className="text-4xl font-bold text-[#50C878]">{karmaScore}/100</div>
+              <div className="mt-2 text-sm text-gray-500">
+                {karmaScore >= 90
+                  ? 'Exemplary Patient'
+                  : karmaScore >= 75
+                  ? 'Excellent Patient'
+                  : karmaScore >= 60
+                  ? 'Good Patient'
+                  : 'Building Karma'}
+              </div>
+            </Card>
           </Link>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <Card>
             <div className="flex items-center justify-between mb-2">
               <div className="text-gray-600 font-semibold">Unscheduled Orders</div>
               <span className="text-2xl">{unscheduledOrders.length > 0 ? '🔴' : '✅'}</span>
@@ -152,9 +197,9 @@ export default function PatientDashboard() {
             <div className="mt-2 text-sm text-gray-500">
               {unscheduledOrders.length === 0 ? 'All caught up!' : 'Need your attention'}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <Card>
             <div className="flex items-center justify-between mb-2">
               <div className="text-gray-600 font-semibold">Upcoming Appointments</div>
               <span className="text-2xl">📅</span>
@@ -163,11 +208,11 @@ export default function PatientDashboard() {
             <div className="mt-2 text-sm text-gray-500">
               {upcomingAppointments.length === 0 ? 'None scheduled' : 'Next 30 days'}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Orders Section */}
-        <div className="bg-white rounded-xl shadow-lg mb-8">
+        <Card className="mb-8">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-2xl font-bold text-gray-800">Your Orders</h2>
           </div>
@@ -189,34 +234,29 @@ export default function PatientDashboard() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold text-lg text-gray-900">{order.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          order.status === 'unscheduled'
-                            ? 'bg-red-100 text-red-700'
-                            : order.status === 'scheduled'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {order.status === 'unscheduled' ? '🔴 NEEDS SCHEDULING' : '✅ SCHEDULED'}
-                        </span>
+                        <StatusBadge status={order.status} />
                       </div>
 
                       <p className="text-gray-600 mb-2">
-                        From: <span className="font-semibold">{order.provider?.full_name || 'Your Provider'}</span>
+                        From:{' '}
+                        <span className="font-semibold">
+                          {order.provider?.full_name || 'Your Provider'}
+                        </span>
                       </p>
 
                       <div className="flex gap-4 text-sm text-gray-500">
                         <span>Type: {order.order_type}</span>
                         <span>{order.prerequisites?.length || 0} prerequisites</span>
                         {order.priority !== 'routine' && (
-                          <span className="text-orange-600 font-semibold">Priority: {order.priority}</span>
+                          <span className="text-orange-600 font-semibold">
+                            Priority: {order.priority}
+                          </span>
                         )}
                       </div>
 
                       {order.status === 'unscheduled' && (
                         <div className="mt-3">
-                          <button className="btn-primary text-sm py-2 px-6">
-                            Schedule Now with AI
-                          </button>
+                          <Button size="sm">Schedule Now with AI</Button>
                         </div>
                       )}
                     </div>
@@ -229,11 +269,11 @@ export default function PatientDashboard() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Appointments Section */}
         {upcomingAppointments.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg">
+          <Card>
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-800">Upcoming Appointments</h2>
             </div>
@@ -241,33 +281,11 @@ export default function PatientDashboard() {
             <div className="divide-y divide-gray-200">
               {upcomingAppointments.map((appointment: any) => (
                 <div key={appointment.id} className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                        {appointment.orders?.title || 'Appointment'}
-                      </h3>
-                      <div className="flex items-center text-gray-600 mb-2">
-                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                        </svg>
-                        {new Date(appointment.scheduled_start).toLocaleString()}
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        {appointment.location}
-                      </div>
-                    </div>
-
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                      {appointment.status}
-                    </span>
-                  </div>
+                  <AppointmentCard appointment={appointment} showTitle={true} />
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
       </main>
     </div>

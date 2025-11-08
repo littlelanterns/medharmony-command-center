@@ -40,5 +40,42 @@ INSERT INTO karma_history (patient_id, action_type, points_change, description) 
   ('22222222-2222-2222-2222-222222222222', 'cancelled_with_3plus_days', 5, 'Rescheduled appointment with 1 week notice'),
   ('22222222-2222-2222-2222-222222222222', 'claimed_cancellation', 10, 'Helped fill cancelled slot');
 
+-- Provider schedules table (for scheduling real appointments)
+CREATE TABLE IF NOT EXISTS provider_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  location TEXT NOT NULL,
+  day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  staff_available TEXT[],
+  max_appointments INTEGER DEFAULT 8,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Lab locations with operating hours
+-- Main St Lab: Monday-Friday 7am-4pm
+INSERT INTO provider_schedules (location, day_of_week, start_time, end_time, staff_available, max_appointments) VALUES
+  ('MedHarmony Labs - Main St', 1, '07:00:00', '16:00:00', ARRAY['Lisa Chen', 'Mark Johnson'], 10),
+  ('MedHarmony Labs - Main St', 2, '07:00:00', '16:00:00', ARRAY['Lisa Chen', 'Mark Johnson'], 10),
+  ('MedHarmony Labs - Main St', 3, '07:00:00', '16:00:00', ARRAY['Lisa Chen', 'Amy Wu'], 10),
+  ('MedHarmony Labs - Main St', 4, '07:00:00', '16:00:00', ARRAY['Mark Johnson', 'Amy Wu'], 10),
+  ('MedHarmony Labs - Main St', 5, '07:00:00', '16:00:00', ARRAY['Lisa Chen', 'Amy Wu'], 10);
+
+-- Oak Ave Lab: Monday-Friday 7am-3pm
+INSERT INTO provider_schedules (location, day_of_week, start_time, end_time, staff_available, max_appointments) VALUES
+  ('MedHarmony Labs - Oak Ave', 1, '07:00:00', '15:00:00', ARRAY['Mark Johnson'], 6),
+  ('MedHarmony Labs - Oak Ave', 2, '07:00:00', '15:00:00', ARRAY['Mark Johnson'], 6),
+  ('MedHarmony Labs - Oak Ave', 3, '07:00:00', '15:00:00', ARRAY['Amy Wu'], 6),
+  ('MedHarmony Labs - Oak Ave', 4, '07:00:00', '15:00:00', ARRAY['Mark Johnson'], 6),
+  ('MedHarmony Labs - Oak Ave', 5, '07:00:00', '15:00:00', ARRAY['Amy Wu'], 6);
+
+-- Riverside Lab: Monday-Friday 8am-5pm
+INSERT INTO provider_schedules (location, day_of_week, start_time, end_time, staff_available, max_appointments) VALUES
+  ('MedHarmony Labs - Riverside', 1, '08:00:00', '17:00:00', ARRAY['Lisa Chen', 'Amy Wu'], 8),
+  ('MedHarmony Labs - Riverside', 2, '08:00:00', '17:00:00', ARRAY['Lisa Chen'], 8),
+  ('MedHarmony Labs - Riverside', 3, '08:00:00', '17:00:00', ARRAY['Amy Wu'], 8),
+  ('MedHarmony Labs - Riverside', 4, '08:00:00', '17:00:00', ARRAY['Lisa Chen'], 8),
+  ('MedHarmony Labs - Riverside', 5, '08:00:00', '17:00:00', ARRAY['Amy Wu'], 8);
+
 -- Success message
 SELECT 'Demo data seeded successfully! You can now login and test the application.' as message;

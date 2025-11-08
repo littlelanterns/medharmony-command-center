@@ -51,26 +51,19 @@ export async function POST(request: NextRequest) {
       .update({ status: 'scheduled' })
       .eq('id', orderId);
 
-    // Award karma points for scheduling
-    await supabaseAdmin.rpc('increment_karma', {
-      patient_id_param: patientId,
-      points: 5
-    }).catch(() => {
-      // If RPC doesn't exist, do it manually
-      supabaseAdmin
+    // Award karma points for scheduling (do it manually since RPC might not exist)
+    const { data: profile } = await supabaseAdmin
+      .from('patient_profiles')
+      .select('karma_score')
+      .eq('id', patientId)
+      .single();
+
+    if (profile) {
+      await supabaseAdmin
         .from('patient_profiles')
-        .select('karma_score')
-        .eq('id', patientId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            supabaseAdmin
-              .from('patient_profiles')
-              .update({ karma_score: data.karma_score + 5 })
-              .eq('id', patientId);
-          }
-        });
-    });
+        .update({ karma_score: profile.karma_score + 5 })
+        .eq('id', patientId);
+    }
 
     // Create karma history entry
     await supabaseAdmin

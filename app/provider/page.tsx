@@ -2,7 +2,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { Order } from '@/lib/types';
-import Link from 'next/link';
+import Header from '@/components/shared/Header';
+import RevenueMeter from '@/components/provider/RevenueMeter';
+import OrderCard from '@/components/provider/OrderCard';
+import Card from '@/components/ui/Card';
 
 export default function ProviderDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -70,60 +73,39 @@ export default function ProviderDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-[#002C5F] text-white p-6 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Provider Dashboard</h1>
-            <p className="text-white/80 mt-1">Welcome, {user?.name || 'Dr. Jones'}</p>
-          </div>
-          <Link
-            href="/provider/orders/new"
-            className="btn-primary"
-          >
-            + Create New Order
-          </Link>
-        </div>
-      </header>
+      <Header
+        title="Provider Dashboard"
+        userName={user?.name || 'Dr. Jones'}
+        actionButton={{
+          label: '+ Create New Order',
+          href: '/provider/orders/new',
+        }}
+      />
 
       <main className="max-w-7xl mx-auto p-8">
-        {/* Revenue Protection Meter */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Revenue Protection Meter</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
-              <div className="text-red-600 font-semibold mb-2">AT RISK</div>
-              <div className="text-4xl font-bold text-red-700">${atRiskRevenue.toLocaleString()}</div>
-              <div className="text-gray-600 mt-2">{unscheduledOrders.length} unscheduled orders</div>
-            </div>
-
-            <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
-              <div className="text-green-600 font-semibold mb-2">PROTECTED</div>
-              <div className="text-4xl font-bold text-green-700">
-                ${(totalRevenue - atRiskRevenue).toLocaleString()}
-              </div>
-              <div className="text-gray-600 mt-2">{scheduledOrders.length} scheduled orders</div>
-            </div>
-
-            <div className="bg-blue-50 rounded-lg p-6 border-l-4 border-blue-600">
-              <div className="text-blue-600 font-semibold mb-2">TOTAL VALUE</div>
-              <div className="text-4xl font-bold text-blue-700">${totalRevenue.toLocaleString()}</div>
-              <div className="text-gray-600 mt-2">{orders.length} total orders</div>
-            </div>
-          </div>
-
-          {atRiskRevenue > 0 && (
-            <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-500 p-4">
-              <p className="text-yellow-800 font-semibold">
-                ⚠️ {unscheduledOrders.length} {unscheduledOrders.length === 1 ? 'order needs' : 'orders need'} patient scheduling to prevent revenue leakage
-              </p>
-            </div>
-          )}
+        {/* Quick Actions */}
+        <div className="mb-6 flex gap-4">
+          <a
+            href="/provider/availability"
+            className="px-6 py-3 bg-white border-2 border-[#008080] text-[#008080] font-semibold rounded-lg hover:bg-[#008080] hover:text-white transition flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+            </svg>
+            Manage Your Availability
+          </a>
         </div>
 
-        {/* Recent Orders */}
-        <div className="bg-white rounded-xl shadow-lg">
+        <RevenueMeter
+          atRiskRevenue={atRiskRevenue}
+          protectedRevenue={totalRevenue - atRiskRevenue}
+          totalRevenue={totalRevenue}
+          unscheduledCount={unscheduledOrders.length}
+          scheduledCount={scheduledOrders.length}
+          totalCount={orders.length}
+        />
+
+        <Card>
           <div className="p-6 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-800">Recent Orders</h2>
             <div className="flex gap-3">
@@ -144,65 +126,11 @@ export default function ProviderDashboard() {
           ) : (
             <div className="divide-y divide-gray-200">
               {orders.map((order: any) => (
-                <div key={order.id} className="p-6 hover:bg-gray-50 transition">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900">{order.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          order.status === 'unscheduled'
-                            ? 'bg-red-100 text-red-700'
-                            : order.status === 'scheduled'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {order.status === 'unscheduled' ? '🔴 UNSCHEDULED' : '✅ SCHEDULED'}
-                        </span>
-                      </div>
-
-                      <p className="text-gray-600 mb-2">
-                        Patient: <span className="font-semibold">{order.patient?.full_name || 'Unknown'}</span>
-                      </p>
-
-                      <div className="flex gap-4 text-sm text-gray-500">
-                        <span>Type: {order.order_type}</span>
-                        <span>Priority: {order.priority}</span>
-                        <span>{order.prerequisites?.length || 0} prerequisites</span>
-                      </div>
-
-                      {order.status === 'unscheduled' && (
-                        <div className="mt-3 flex items-center text-sm text-orange-600">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                          </svg>
-                          Waiting for patient to schedule
-                        </div>
-                      )}
-
-                      {order.status === 'scheduled' && (
-                        <div className="mt-3 flex items-center text-sm text-green-600">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          Patient has scheduled appointment
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-gray-800">
-                        ${order.estimated_revenue || 200}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <OrderCard key={order.id} order={order} showPatientInfo={true} />
               ))}
             </div>
           )}
-        </div>
+        </Card>
       </main>
     </div>
   );
