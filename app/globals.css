@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary Colors */
+  --primary-dark-blue: #002C5F;
+  --primary-teal: #008080;
+
+  /* Accent Colors */
+  --accent-emerald: #50C878;
+  --accent-silver: #C0C0C0;
+
+  /* Supporting Colors */
+  --white: #FFFFFF;
+  --background-light: #F8FAFB;
+
+  /* Status Colors */
+  --status-unscheduled: #DC2626;
+  --status-scheduled: #F59E0B;
+  --status-confirmed: #10B981;
+  --status-completed: #6B7280;
+  --status-cancelled: #9CA3AF;
+  --status-noshow: #991B1B;
+
+  /* Text Colors */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+}
+
+body {
+  color: var(--text-primary);
+  background: var(--background-light);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Custom button styles */
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent-emerald) 45%, var(--primary-teal) 100%);
+  color: white;
+  padding: 0.75rem 2rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(90deg, var(--primary-teal) 60%, var(--accent-emerald) 100%);
+  box-shadow: 0 8px 32px rgba(0,44,95,0.18);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--primary-dark-blue);
+  border: 2px solid var(--primary-teal);
+  padding: 0.75rem 2rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: var(--primary-teal);
+  color: white;
+}
+
+/* Card styles */
+.card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 2px 12px rgba(0,44,95,0.07);
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 30px rgba(0,128,128,0.14);
+}
+
+/* Status badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge-unscheduled {
+  background: #FEE2E2;
+  color: var(--status-unscheduled);
+}
+
+.badge-scheduled {
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.badge-confirmed {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+.badge-completed {
+  background: #E5E7EB;
+  color: var(--status-completed);
+}
