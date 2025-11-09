@@ -16,6 +16,7 @@ export default function OrderDetailPage() {
   const searchParams = useSearchParams();
   const orderId = params.id as string;
   const autoSchedule = searchParams.get('autoSchedule') === 'true';
+  const isRescheduling = searchParams.get('reschedule') === 'true';
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -135,16 +136,38 @@ export default function OrderDetailPage() {
         {/* Order Status Card */}
         <Card
           className={`mb-6 ${
-            isScheduled ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'
+            isRescheduling
+              ? 'bg-blue-50 border-l-4 border-blue-500'
+              : isScheduled
+              ? 'bg-green-50 border-l-4 border-green-500'
+              : 'bg-red-50 border-l-4 border-red-500'
           }`}
         >
           <div className="flex items-start justify-between">
             <div>
-              <h2 className={`text-2xl font-bold mb-2 ${isScheduled ? 'text-green-800' : 'text-red-800'}`}>
-                {isScheduled ? '✅ Appointment Scheduled' : '🔴 Needs Scheduling'}
+              <h2 className={`text-2xl font-bold mb-2 ${
+                isRescheduling
+                  ? 'text-blue-800'
+                  : isScheduled
+                  ? 'text-green-800'
+                  : 'text-red-800'
+              }`}>
+                {isRescheduling
+                  ? '🔄 Rescheduling Appointment'
+                  : isScheduled
+                  ? '✅ Appointment Scheduled'
+                  : '🔴 Needs Scheduling'}
               </h2>
-              <p className={isScheduled ? 'text-green-700' : 'text-red-700'}>
-                {isScheduled
+              <p className={
+                isRescheduling
+                  ? 'text-blue-700'
+                  : isScheduled
+                  ? 'text-green-700'
+                  : 'text-red-700'
+              }>
+                {isRescheduling
+                  ? '⚠️ Your current appointment is shown below. Select a new time to reschedule. The old appointment will ONLY be cancelled after you confirm the new time.'
+                  : isScheduled
                   ? 'Your appointment has been scheduled. Details below.'
                   : 'This order requires scheduling. Use the AI scheduler below to find the best time.'}
               </p>

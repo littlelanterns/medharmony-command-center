@@ -17,6 +17,15 @@ export async function POST(request: NextRequest) {
       .eq('patient_id', patientId)
       .eq('is_active', true);
 
+    // Fetch patient's existing appointments to avoid conflicts
+    const { data: existingAppointments } = await supabase
+      .from('appointments')
+      .select('scheduled_start, scheduled_end, order:orders!appointments_order_id_fkey(title)')
+      .eq('patient_id', patientId)
+      .in('status', ['scheduled', 'confirmed'])
+      .gte('scheduled_start', new Date().toISOString())
+      .order('scheduled_start', { ascending: true });
+
     // Fetch provider schedules
     const { data: schedules } = await supabase
       .from('provider_schedules')
@@ -52,6 +61,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Build existing appointments string (CRITICAL: Must avoid these times!)
+    let existingApptsText = '';
+    if (existingAppointments && existingAppointments.length > 0) {
+      existingApptsText = '\n\n🚨 EXISTING APPOINTMENTS (MUST AVOID CONFLICTS!):\n';
+      existingAppointments.forEach(appt => {
+        const start = new Date(appt.scheduled_start);
+        const end = new Date(appt.scheduled_end);
+        existingApptsText += `- ${start.toLocaleDateString()} ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}: ${(appt as any).order?.title || 'Appointment'}\n`;
+      });
+      existingApptsText += '\n⚠️ DO NOT suggest any times that overlap with these appointments!\n';
+    }
+
     // Build provider schedules string
     const locationSchedules = new Map<string, any[]>();
     schedules?.forEach(schedule => {
@@ -82,6 +103,7 @@ PREREQUISITES:
 ${prerequisites.map((p: any) => `- ${p.description}`).join('\n')}
 
 ${patientPrefsText}
+${existingApptsText}
 
 ${schedulesText}
 
@@ -91,12 +113,13 @@ CURRENT TIME: ${new Date().toISOString()}
 Generate 3 ranked appointment options. Consider:
 1. Patient's preferred times of day
 2. Avoiding all recurring and one-time unavailable blocks
-3. Meeting all prerequisites (fasting = morning appointment)
-4. Respecting the notice requirement (${hoursNeeded} hours minimum)
-5. Earliness (sooner is better, but not too urgent - at least 2-3 days out)
-6. Different locations for variety
-7. Only schedule during actual provider operating hours
-8. Assign actual staff members from the available list
+3. 🚨 CRITICAL: Avoiding ALL existing appointments (no time conflicts or overlaps!)
+4. Meeting all prerequisites (fasting = morning appointment)
+5. Respecting the notice requirement (${hoursNeeded} hours minimum)
+6. Earliness (sooner is better, but not too urgent - at least 2-3 days out)
+7. Different locations for variety
+8. Only schedule during actual provider operating hours
+9. Assign actual staff members from the available list
 
 Return ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
@@ -171,8 +194,14 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
         const dayOfWeek = candidateDate.getDay();
         const isBlocked = recurringBlocks.some(block => block.day_of_week === dayOfWeek);
 
+        // Check if this date/time conflicts with existing appointments
+        const hasConflict = existingAppointments?.some(appt => {
+          const apptDate = new Date(appt.scheduled_start);
+          return candidateDate.toDateString() === apptDate.toDateString();
+        }) || false;
+
         // Check if it's a weekday (Monday-Friday)
-        if (dayOfWeek >= 1 && dayOfWeek <= 5 && !isBlocked) {
+        if (dayOfWeek >= 1 && dayOfWeek <= 5 && !isBlocked && !hasConflict) {
           availableDates.push(new Date(candidateDate));
         }
 

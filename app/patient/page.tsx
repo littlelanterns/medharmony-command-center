@@ -17,6 +17,9 @@ export default function PatientDashboard() {
   const [user, setUser] = useState<any>(null);
   const [hasPreferences, setHasPreferences] = useState(false);
   const [cancellationAlerts, setCancellationAlerts] = useState<any[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [bookingProviderId, setBookingProviderId] = useState<string>('');
+  const [bookingInProgress, setBookingInProgress] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -75,7 +78,29 @@ export default function PatientDashboard() {
     if (patientData) setKarmaScore(patientData.karma_score);
     setHasPreferences((prefsData?.length || 0) > 0);
     if (alertsData) setCancellationAlerts(alertsData);
+
+    // Load providers for booking appointments
+    await loadProviders();
+
     setLoading(false);
+  };
+
+  const loadProviders = async () => {
+    const { data: providersData } = await supabase
+      .from('provider_profiles')
+      .select(`
+        id,
+        specialty,
+        user:users!provider_profiles_id_fkey (
+          full_name
+        )
+      `)
+      .eq('verified', true)
+      .order('specialty', { ascending: true });
+
+    if (providersData) {
+      setProviders(providersData);
+    }
   };
 
   const subscribeToUpdates = (patientId: string) => {
@@ -112,6 +137,51 @@ export default function PatientDashboard() {
     };
   };
 
+  const handleBookAppointment = async () => {
+    if (!bookingProviderId) {
+      alert('Please select a provider.');
+      return;
+    }
+
+    const provider = providers.find(p => p.id === bookingProviderId);
+
+    if (!confirm(`Book an appointment with ${(provider as any)?.user?.full_name} (${provider?.specialty})?`)) {
+      return;
+    }
+
+    setBookingInProgress(true);
+
+    try {
+      // Create a new order for this appointment
+      const { data: newOrder, error } = await supabase
+        .from('orders')
+        .insert({
+          patient_id: user.id,
+          provider_id: bookingProviderId,
+          order_type: 'consultation',
+          title: `Consultation - ${provider?.specialty}`,
+          description: `New appointment booking with ${(provider as any)?.user?.full_name}`,
+          status: 'unscheduled',
+          priority: 'routine',
+          estimated_revenue: 200,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Automatically redirect to the AI scheduler for the new order
+      window.location.href = `/patient/orders/${newOrder.id}?autoSchedule=true`
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      alert(`❌ Error creating appointment: ${error.message}`);
+    } finally {
+      setBookingInProgress(false);
+    }
+  };
+
   const unscheduledOrders = orders.filter((o: any) => o.status === 'unscheduled');
   const upcomingAppointments = appointments.filter((a: any) =>
     new Date(a.scheduled_start) > new Date() && a.status !== 'cancelled'
@@ -140,27 +210,6 @@ export default function PatientDashboard() {
       />
 
       <main className="max-w-7xl mx-auto p-8">
-        {/* Alert for missing preferences */}
-        {!hasPreferences && (
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-lg">
-            <div className="flex items-start">
-              <svg className="w-6 h-6 text-blue-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              <div>
-                <h2 className="text-xl font-bold text-blue-800 mb-2">
-                  Set Your Availability Preferences
-                </h2>
-                <p className="text-blue-700 mb-3">
-                  Help our AI find the perfect appointment times by setting your availability preferences. This only takes a minute!
-                </p>
-                <Link href="/patient/preferences" className="btn-primary text-sm py-2 px-6">
-                  Set Preferences Now
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Cancellation Alerts - Show first! */}
         {cancellationAlerts.map((alert) => (
@@ -233,6 +282,44 @@ export default function PatientDashboard() {
               {upcomingAppointments.length === 0 ? 'None scheduled' : 'Next 30 days'}
             </div>
           </Card>
+        </div>
+
+        {/* Book New Appointment */}
+        <div className="mb-8">
+          <div className="bg-gradient-to-r from-[#008080] to-[#002C5F] rounded-xl p-6 text-white shadow-lg">
+            <h2 className="text-2xl font-bold mb-4">📅 Book New Appointment</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-semibold mb-2">Select Provider / Specialist</label>
+                <select
+                  value={bookingProviderId}
+                  onChange={(e) => setBookingProviderId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border-2 border-white/20 bg-white/10 text-white focus:outline-none focus:border-white"
+                  disabled={bookingInProgress}
+                >
+                  <option value="" className="text-gray-900">Select a provider...</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id} className="text-gray-900">
+                      {(provider as any).user.full_name} - {provider.specialty}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <button
+                  onClick={handleBookAppointment}
+                  disabled={bookingInProgress || !bookingProviderId}
+                  className="w-full px-6 py-2 bg-white text-[#008080] rounded-lg font-semibold hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bookingInProgress ? '⏳ Booking...' : '➕ Create Appointment Order'}
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-white/80 mt-3">
+              This will create a new appointment order that you can then schedule using AI.
+            </p>
+          </div>
         </div>
 
         {/* Orders Section */}

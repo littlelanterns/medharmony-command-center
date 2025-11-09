@@ -35,6 +35,7 @@ interface Order {
 
 interface Appointment {
   id: string;
+  order_id: string;
   patient_id: string;
   patient_name: string;
   scheduled_start: string;
@@ -64,6 +65,11 @@ export default function CaregiverDashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>('all');
   const [schedulingAll, setSchedulingAll] = useState(false);
+  const [processingAppointment, setProcessingAppointment] = useState<string | null>(null);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [bookingPatientId, setBookingPatientId] = useState<string>('');
+  const [bookingProviderId, setBookingProviderId] = useState<string>('');
+  const [bookingInProgress, setBookingInProgress] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -126,6 +132,9 @@ export default function CaregiverDashboard() {
       await loadOrders(patientIds, members);
       await loadAppointments(patientIds, members);
     }
+
+    // Load all providers for booking appointments
+    await loadProviders();
 
     setLoading(false);
   };
@@ -193,6 +202,24 @@ export default function CaregiverDashboard() {
       });
 
       setAppointments(appointmentsWithPatientInfo);
+    }
+  };
+
+  const loadProviders = async () => {
+    const { data: providersData } = await supabase
+      .from('provider_profiles')
+      .select(`
+        id,
+        specialty,
+        user:users!provider_profiles_id_fkey (
+          full_name
+        )
+      `)
+      .eq('verified', true)
+      .order('specialty', { ascending: true });
+
+    if (providersData) {
+      setProviders(providersData);
     }
   };
 
@@ -283,6 +310,90 @@ export default function CaregiverDashboard() {
       console.error('Scheduling error:', error);
       alert(`❌ Error scheduling appointments: ${error.message}`);
       setSchedulingAll(false);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string, patientName: string) => {
+    if (!confirm(`Are you sure you want to cancel this appointment for ${patientName}?`)) {
+      return;
+    }
+
+    setProcessingAppointment(appointmentId);
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to cancel appointment');
+      }
+
+      alert(`✅ Appointment cancelled successfully for ${patientName}`);
+
+      // Reload data
+      if (user.id) {
+        await loadFamilyData(user.id);
+      }
+    } catch (error: any) {
+      console.error('Cancel error:', error);
+      alert(`❌ Error cancelling appointment: ${error.message}`);
+    } finally {
+      setProcessingAppointment(null);
+    }
+  };
+
+  const handleRescheduleAppointment = async (orderId: string, patientId: string, patientName: string) => {
+    // Navigate to the order page with reschedule and auto-schedule enabled
+    router.push(`/patient/orders/${orderId}?patientId=${patientId}&reschedule=true&autoSchedule=true`);
+  };
+
+  const handleBookAppointment = async () => {
+    if (!bookingPatientId || !bookingProviderId) {
+      alert('Please select both a family member and a provider.');
+      return;
+    }
+
+    const patient = familyMembers.find(m => m.id === bookingPatientId);
+    const provider = providers.find(p => p.id === bookingProviderId);
+
+    if (!confirm(`Book an appointment for ${patient?.full_name} with ${(provider as any)?.user?.full_name} (${provider?.specialty})?`)) {
+      return;
+    }
+
+    setBookingInProgress(true);
+
+    try {
+      // Create a new order for this appointment
+      const { data: newOrder, error } = await supabase
+        .from('orders')
+        .insert({
+          patient_id: bookingPatientId,
+          provider_id: bookingProviderId,
+          order_type: 'consultation',
+          title: `Consultation - ${provider?.specialty}`,
+          description: `New appointment booking with ${(provider as any)?.user?.full_name}`,
+          status: 'unscheduled',
+          priority: 'routine',
+          estimated_revenue: 200,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Automatically redirect to the AI scheduler for the new order
+      router.push(`/patient/orders/${newOrder.id}?patientId=${bookingPatientId}&autoSchedule=true`)
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      alert(`❌ Error creating appointment: ${error.message}`);
+    } finally {
+      setBookingInProgress(false);
     }
   };
 
@@ -416,6 +527,61 @@ export default function CaregiverDashboard() {
           </div>
         </div>
 
+        {/* Book New Appointment */}
+        <div className="mb-8">
+          <div className="bg-gradient-to-r from-[#008080] to-[#002C5F] rounded-xl p-6 text-white shadow-lg">
+            <h2 className="text-2xl font-bold mb-4">📅 Book New Appointment</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-semibold mb-2">Family Member</label>
+                <select
+                  value={bookingPatientId}
+                  onChange={(e) => setBookingPatientId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border-2 border-white/20 bg-white/10 text-white focus:outline-none focus:border-white"
+                  disabled={bookingInProgress}
+                >
+                  <option value="" className="text-gray-900">Select family member...</option>
+                  {familyMembers.map((member) => (
+                    <option key={member.id} value={member.id} className="text-gray-900">
+                      {member.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Provider / Specialist</label>
+                <select
+                  value={bookingProviderId}
+                  onChange={(e) => setBookingProviderId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border-2 border-white/20 bg-white/10 text-white focus:outline-none focus:border-white"
+                  disabled={bookingInProgress}
+                >
+                  <option value="" className="text-gray-900">Select provider...</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id} className="text-gray-900">
+                      {(provider as any).user.full_name} - {provider.specialty}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <button
+                  onClick={handleBookAppointment}
+                  disabled={bookingInProgress || !bookingPatientId || !bookingProviderId}
+                  className="w-full px-6 py-2 bg-white text-[#008080] rounded-lg font-semibold hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bookingInProgress ? '⏳ Booking...' : '➕ Create Appointment Order'}
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-white/80 mt-3">
+              This will create a new appointment order that you can then schedule using AI.
+            </p>
+          </div>
+        </div>
+
         {/* Upcoming Appointments */}
         {filteredAppointments.length > 0 && (
           <div className="mb-8">
@@ -459,6 +625,24 @@ export default function CaregiverDashboard() {
                           <p>📍 {appt.location}</p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Reschedule and Cancel Buttons */}
+                    <div className="flex gap-3 mt-4">
+                      <button
+                        onClick={() => handleRescheduleAppointment(appt.order_id, appt.patient_id, patient?.full_name || 'Patient')}
+                        disabled={processingAppointment === appt.id}
+                        className="px-4 py-2 bg-[#008080] text-white rounded-full font-semibold hover:bg-[#006666] transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        🔄 Reschedule
+                      </button>
+                      <button
+                        onClick={() => handleCancelAppointment(appt.id, patient?.full_name || 'Patient')}
+                        disabled={processingAppointment === appt.id}
+                        className="px-4 py-2 border-2 border-red-300 text-red-700 rounded-full font-semibold hover:bg-red-50 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        {processingAppointment === appt.id ? '⏳ Cancelling...' : '❌ Cancel'}
+                      </button>
                     </div>
                   </div>
                 );
