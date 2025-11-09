@@ -50,9 +50,17 @@ export default function Header({
 
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">{title}</h1>
-            {subtitle && <p className="text-white/80 mt-1">{subtitle}</p>}
-            {userName && (
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              {title}
+              <span className="text-xs bg-white/20 px-3 py-1 rounded-full font-normal">DEMO MODE</span>
+            </h1>
+            {subtitle && <p className="text-white/80 mt-1">{subtitle} • Real hospital pricing data</p>}
+            {!subtitle && userName && (
+              <p className="text-white/80 mt-1">
+                Welcome, {userName} • Real hospital pricing data
+              </p>
+            )}
+            {subtitle && userName && (
               <p className="text-white/80 mt-1">
                 Welcome, {userName}
               </p>

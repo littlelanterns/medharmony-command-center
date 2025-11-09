@@ -493,9 +493,12 @@ export default function CaregiverDashboard() {
                 </svg>
                 Back to Home
               </button>
-              <h1 className="text-3xl font-bold">Family Health Manager</h1>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                Family Health Manager
+                <span className="text-xs bg-white/20 px-3 py-1 rounded-full font-normal">DEMO MODE</span>
+              </h1>
               <p className="text-white/90 mt-1">
-                Managing healthcare for {familyMembers.length} family member{familyMembers.length !== 1 ? 's' : ''}
+                Managing healthcare for {familyMembers.length} family member{familyMembers.length !== 1 ? 's' : ''} • Real hospital pricing
               </p>
             </div>
             <div className="flex items-center gap-4">

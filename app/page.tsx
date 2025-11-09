@@ -9,22 +9,22 @@ interface DemoUser {
 }
 
 const DEMO_USERS: DemoUser[] = [
+  // Caregiver - Show first (most impressive demo)
+  { id: '20000000-0000-0000-0000-000000000001', name: 'Jennifer Martinez', role: 'caregiver', badge: 'Managing 6 family members + $50K heart surgery' },
+
   // Providers
-  { id: '10000000-0000-0000-0000-000000000001', name: 'Dr. Patel (Pediatrics)', role: 'provider', badge: '10 appointments' },
-  { id: '10000000-0000-0000-0000-000000000002', name: 'Dr. Kim (Endocrinology)', role: 'provider', badge: '8 appointments' },
-  { id: '10000000-0000-0000-0000-000000000003', name: 'Dr. Michael Chen (Cardiology)', role: 'provider', badge: 'Heart specialist' },
-  { id: '10000000-0000-0000-0000-000000000004', name: 'Dr. Amanda Rodriguez (Psychiatry)', role: 'provider', badge: 'Child psych' },
-  { id: '10000000-0000-0000-0000-000000000007', name: 'Dr. Maria Santos (Family Medicine)', role: 'provider', badge: 'Primary care' },
-  { id: '11111111-1111-1111-1111-111111111111', name: 'Dr. Sarah Jones', role: 'provider', badge: 'Original' },
+  { id: '10000000-0000-0000-0000-000000000003', name: 'Dr. Michael Chen', role: 'provider', badge: 'Cardiologist - Ruthie\'s heart surgery order' },
+  { id: '11111111-1111-1111-1111-111111111111', name: 'Dr. Sarah Jones', role: 'provider', badge: 'Pediatrician - AI schedule across 3 locations' },
+  { id: '10000000-0000-0000-0000-000000000001', name: 'Dr. Patel', role: 'provider', badge: 'Pediatrics - 10 appointments' },
+  { id: '10000000-0000-0000-0000-000000000002', name: 'Dr. Kim', role: 'provider', badge: 'Endocrinology - 8 appointments' },
+  { id: '10000000-0000-0000-0000-000000000004', name: 'Dr. Amanda Rodriguez', role: 'provider', badge: 'Child Psychiatry' },
+  { id: '10000000-0000-0000-0000-000000000007', name: 'Dr. Maria Santos', role: 'provider', badge: 'Family Medicine - Primary care' },
 
   // Patients
-  { id: '30000000-0000-0000-0000-000000000001', name: 'Robert Chen', role: 'patient', badge: 'Karma: 95 ⭐' },
-  { id: '30000000-0000-0000-0000-000000000002', name: 'Maria Gonzalez', role: 'patient', badge: 'Karma: 92 ⭐' },
-  { id: '22222222-2222-2222-2222-222222222222', name: 'Sarah Martinez', role: 'patient', badge: 'Original' },
-  { id: '33333333-3333-3333-3333-333333333333', name: 'John Davis', role: 'patient', badge: 'Original' },
-
-  // Caregiver
-  { id: '20000000-0000-0000-0000-000000000001', name: 'Jennifer Martinez (Caregiver)', role: 'caregiver' },
+  { id: '30000000-0000-0000-0000-000000000001', name: 'Robert Chen', role: 'patient', badge: 'High karma: 95/100 ⭐' },
+  { id: '30000000-0000-0000-0000-000000000002', name: 'Maria Gonzalez', role: 'patient', badge: 'High karma: 92/100 ⭐' },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Sarah Martinez', role: 'patient', badge: 'Standard patient' },
+  { id: '33333333-3333-3333-3333-333333333333', name: 'John Davis', role: 'patient', badge: 'Standard patient' },
 ];
 
 export default function HomePage() {
@@ -39,10 +39,12 @@ export default function HomePage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#002C5F] to-[#008080]">
       <div className="text-center">
         <h1 className="text-6xl font-bold text-white mb-4">MedHarmony</h1>
-        <p className="text-2xl text-white/90 mb-12">Harmonized Care, Simplified Scheduling</p>
+        <p className="text-2xl text-white/90 mb-2">Harmonized Care, Simplified Scheduling</p>
+        <p className="text-sm text-white/70 mb-12">Powered by AI • Real Hospital Pricing Data • Smart Scheduling</p>
 
         <div className="bg-white rounded-2xl p-8 max-w-md mx-auto shadow-2xl">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">Demo Login</h2>
+          <h2 className="text-2xl font-bold mb-2 text-gray-800">Demo Login</h2>
+          <p className="text-xs text-gray-500 mb-6">Using real Freeman Health System pricing data</p>
 
           {DEMO_USERS.map(user => (
             <button
