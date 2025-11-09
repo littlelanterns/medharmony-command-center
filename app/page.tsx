@@ -5,6 +5,7 @@ const DEMO_USERS = [
   { id: '11111111-1111-1111-1111-111111111111', name: 'Dr. Sarah Jones', role: 'provider' },
   { id: '22222222-2222-2222-2222-222222222222', name: 'Sarah Martinez', role: 'patient' },
   { id: '33333333-3333-3333-3333-333333333333', name: 'John Davis', role: 'patient' },
+  { id: '20000000-0000-0000-0000-000000000001', name: 'Jennifer Martinez', role: 'caregiver' },
 ];
 
 export default function HomePage() {
