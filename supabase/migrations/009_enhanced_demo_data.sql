@@ -10,17 +10,21 @@
 -- 1. ADD MISSING COLUMNS TO TABLES
 -- =====================================================
 
--- Add columns for enhanced provider information if they don't exist
+-- Add columns for enhanced provider information
 ALTER TABLE provider_profiles
 ADD COLUMN IF NOT EXISTS years_experience INTEGER,
 ADD COLUMN IF NOT EXISTS bio TEXT,
 ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
 
--- Add columns for patient medical information if they don't exist
+-- Add columns for patient medical information
 ALTER TABLE patient_profiles
 ADD COLUMN IF NOT EXISTS medical_conditions TEXT[],
 ADD COLUMN IF NOT EXISTS allergies TEXT[],
 ADD COLUMN IF NOT EXISTS current_medications TEXT[];
+
+-- Add prerequisites column to orders table for easier querying
+ALTER TABLE orders
+ADD COLUMN IF NOT EXISTS prerequisites TEXT[];
 
 -- =====================================================
 -- 2. CREATE CAREGIVER RELATIONSHIPS TABLE
@@ -37,7 +41,6 @@ CREATE TABLE IF NOT EXISTS caregiver_relationships (
   UNIQUE(caregiver_id, patient_id)
 );
 
--- Index for fast lookups
 CREATE INDEX IF NOT EXISTS idx_caregiver_relationships_caregiver ON caregiver_relationships(caregiver_id);
 CREATE INDEX IF NOT EXISTS idx_caregiver_relationships_patient ON caregiver_relationships(patient_id);
 
@@ -50,11 +53,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000001', 'dr.patel@medharmony.demo', 'Dr. Raj Patel', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000001',
    'Pediatrics',
+   'Children''s Hospital Network',
    12,
-   'Board-certified pediatrician specializing in developmental pediatrics and adolescent medicine. Passionate about preventive care and family-centered practice.',
+   'Board-certified pediatrician specializing in developmental pediatrics and adolescent medicine',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -63,11 +67,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000002', 'dr.kim@medharmony.demo', 'Dr. Lisa Kim', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000002',
    'Endocrinology',
+   'Diabetes Care Center',
    15,
-   'Diabetes specialist with expertise in Type 1 diabetes management, insulin pump therapy, and continuous glucose monitoring. Focuses on pediatric and young adult patients.',
+   'Diabetes specialist with expertise in Type 1 diabetes and insulin pump therapy',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -76,11 +81,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000003', 'dr.chen@medharmony.demo', 'Dr. Michael Chen', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000003',
    'Cardiology',
+   'Heart & Vascular Center',
    20,
-   'Interventional cardiologist specializing in preventive cardiology and heart disease management. Fellowship-trained in advanced cardiac imaging.',
+   'Interventional cardiologist specializing in preventive cardiology and heart disease management',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -89,11 +95,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000004', 'dr.rodriguez@medharmony.demo', 'Dr. Amanda Rodriguez', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000004',
    'Psychiatry',
+   'Behavioral Health Center',
    10,
-   'Child and adolescent psychiatrist specializing in ADHD, anxiety, and developmental disorders. Evidence-based approach combining therapy and medication management.',
+   'Child and adolescent psychiatrist specializing in ADHD and developmental disorders',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -102,11 +109,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000005', 'dr.walsh@medharmony.demo', 'Dr. Jennifer Walsh', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000005',
    'Ophthalmology',
+   'Eye Care Associates',
    18,
-   'Comprehensive ophthalmologist with subspecialty training in diabetic retinopathy and macular degeneration. Performs routine eye exams and surgical procedures.',
+   'Comprehensive ophthalmologist with subspecialty training in diabetic retinopathy',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -115,11 +123,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000006', 'dr.anderson@medharmony.demo', 'Dr. Thomas Anderson', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000006',
    'Orthopedics',
+   'Sports Medicine & Orthopedics',
    16,
-   'Orthopedic surgeon specializing in sports medicine and joint preservation. Expertise in minimally invasive procedures and regenerative medicine.',
+   'Orthopedic surgeon specializing in sports medicine and joint preservation',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -128,11 +137,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000007', 'dr.santos@medharmony.demo', 'Dr. Maria Santos', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000007',
    'Family Medicine',
+   'Community Health Clinic',
    8,
-   'Family physician providing comprehensive care for all ages. Special interests in preventive medicine, women''s health, and chronic disease management.',
+   'Family physician providing comprehensive care for all ages',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -141,11 +151,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000008', 'dr.rkim@medharmony.demo', 'Dr. Robert Kim', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000008',
    'Radiology',
+   'Advanced Imaging Center',
    14,
-   'Board-certified radiologist specializing in diagnostic imaging. Expertise in MRI, CT, ultrasound, and bone density scans. Quick turnaround on imaging reports.',
+   'Board-certified radiologist specializing in diagnostic imaging',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -154,11 +165,12 @@ INSERT INTO users (id, email, full_name, role) VALUES
   ('10000000-0000-0000-0000-000000000009', 'dr.ejohnson@medharmony.demo', 'Dr. Emily Johnson', 'provider')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) VALUES
+INSERT INTO provider_profiles (id, specialty, organization, years_experience, bio, verified) VALUES
   ('10000000-0000-0000-0000-000000000009',
    'Internal Medicine',
+   'Senior Care Medical Group',
    11,
-   'Internist specializing in geriatric medicine and complex chronic disease management. Focuses on coordinated care and patient education.',
+   'Internist specializing in geriatric medicine and chronic disease management',
    true)
 ON CONFLICT (id) DO NOTHING;
 
@@ -166,7 +178,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 4. ADD JENNIFER MARTINEZ'S FAMILY
 -- =====================================================
 
--- Jennifer Martinez (Caregiver - Mother managing family healthcare)
+-- Jennifer Martinez (Caregiver)
 INSERT INTO users (id, email, full_name, role) VALUES
   ('20000000-0000-0000-0000-000000000001', 'jennifer.martinez@example.com', 'Jennifer Martinez', 'caregiver')
 ON CONFLICT (id) DO NOTHING;
@@ -194,7 +206,7 @@ INSERT INTO patient_profiles (id, date_of_birth, medical_conditions, allergies, 
   ('20000000-0000-0000-0000-000000000003',
    '2016-08-22',
    ARRAY['ADHD'],
-   ARRAY[],
+   ARRAY[]::TEXT[],
    ARRAY['Adderall XR 10mg'],
    90)
 ON CONFLICT (id) DO NOTHING;
@@ -207,13 +219,13 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO patient_profiles (id, date_of_birth, medical_conditions, allergies, current_medications, karma_score) VALUES
   ('20000000-0000-0000-0000-000000000004',
    '2021-01-10',
-   ARRAY[],
-   ARRAY[],
-   ARRAY[],
+   ARRAY[]::TEXT[],
+   ARRAY[]::TEXT[],
+   ARRAY[]::TEXT[],
    95)
 ON CONFLICT (id) DO NOTHING;
 
--- Margaret Chen (68 years old, Jennifer's mother - Hypertension, Osteoporosis)
+-- Margaret Chen (68 years old, Jennifer's mother)
 INSERT INTO users (id, email, full_name, role, phone_number, sms_notifications_enabled) VALUES
   ('20000000-0000-0000-0000-000000000005', 'margaret.chen@example.com', 'Margaret Chen', 'patient', '+15558881234', false)
 ON CONFLICT (id) DO NOTHING;
@@ -243,145 +255,119 @@ ON CONFLICT (caregiver_id, patient_id) DO NOTHING;
 -- =====================================================
 
 -- Emma's Orders (Type 1 Diabetes management)
-INSERT INTO orders (id, patient_id, provider_id, title, description, status, urgency, created_at) VALUES
+INSERT INTO orders (id, patient_id, provider_id, order_type, title, description, status, priority, prerequisites, estimated_revenue, created_at) VALUES
   ('30000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000002',
    '10000000-0000-0000-0000-000000000002',
+   'lab',
    'Quarterly A1C Test',
-   'Routine hemoglobin A1C test to monitor diabetes control. Target A1C <7.5%.',
+   'Routine hemoglobin A1C test to monitor diabetes control',
    'unscheduled',
    'routine',
+   ARRAY['Fasting for 8 hours before test', 'Bring current insulin log or CGM data', 'List any hypoglycemic episodes in past 3 months'],
+   150,
    NOW() - INTERVAL '3 days'),
 
   ('30000000-0000-0000-0000-000000000002',
    '20000000-0000-0000-0000-000000000002',
    '10000000-0000-0000-0000-000000000005',
+   'imaging',
    'Annual Diabetic Eye Exam',
-   'Comprehensive dilated eye exam to screen for diabetic retinopathy. Required annually for Type 1 diabetes patients.',
+   'Comprehensive dilated eye exam to screen for diabetic retinopathy',
    'unscheduled',
-   'standard',
+   'routine',
+   ARRAY['Pupils will be dilated - bring sunglasses', 'Plan for 1-2 hours at appointment', 'Cannot drive for 4-6 hours after'],
+   200,
    NOW() - INTERVAL '5 days')
 ON CONFLICT (id) DO NOTHING;
 
--- Set prerequisites for Emma's orders
-UPDATE orders SET prerequisites = ARRAY[
-  'Fasting for 8 hours before test',
-  'Bring current insulin log or CGM data',
-  'List any hypoglycemic episodes in past 3 months'
-] WHERE id = '30000000-0000-0000-0000-000000000001';
-
-UPDATE orders SET prerequisites = ARRAY[
-  'Pupils will be dilated - bring sunglasses',
-  'Plan for 1-2 hours at appointment',
-  'Cannot drive for 4-6 hours after appointment'
-] WHERE id = '30000000-0000-0000-0000-000000000002';
-
 -- Lucas's Orders (ADHD management)
-INSERT INTO orders (id, patient_id, provider_id, title, description, status, urgency, created_at) VALUES
+INSERT INTO orders (id, patient_id, provider_id, order_type, title, description, status, priority, prerequisites, estimated_revenue, created_at) VALUES
   ('30000000-0000-0000-0000-000000000003',
    '20000000-0000-0000-0000-000000000003',
    '10000000-0000-0000-0000-000000000004',
+   'follow-up',
    'ADHD Medication Follow-up',
-   'Follow-up appointment to assess Adderall effectiveness, side effects, and dosage adjustment if needed.',
+   'Follow-up appointment to assess Adderall effectiveness and dosage',
    'unscheduled',
-   'standard',
+   'routine',
+   ARRAY['Bring completed teacher evaluation form', 'Note any sleep issues or appetite changes', 'Current height and weight will be measured'],
+   175,
    NOW() - INTERVAL '1 day'),
 
   ('30000000-0000-0000-0000-000000000004',
    '20000000-0000-0000-0000-000000000003',
    '10000000-0000-0000-0000-000000000001',
+   'procedure',
    'School Physical & Sports Clearance',
-   'Annual physical exam required for school and soccer team participation.',
+   'Annual physical exam required for school and soccer team participation',
    'unscheduled',
-   'standard',
+   'routine',
+   ARRAY['Bring immunization records', 'Wear athletic clothes for movement assessment', 'Parent/guardian must be present'],
+   125,
    NOW() - INTERVAL '7 days')
 ON CONFLICT (id) DO NOTHING;
 
-UPDATE orders SET prerequisites = ARRAY[
-  'Bring completed teacher evaluation form',
-  'Note any sleep issues or appetite changes',
-  'Current height and weight will be measured'
-] WHERE id = '30000000-0000-0000-0000-000000000003';
-
-UPDATE orders SET prerequisites = ARRAY[
-  'Bring immunization records',
-  'Wear athletic clothes for movement assessment',
-  'Parent/guardian must be present'
-] WHERE id = '30000000-0000-0000-0000-000000000004';
-
 -- Sofia's Order (Well-child visit)
-INSERT INTO orders (id, patient_id, provider_id, title, description, status, urgency, created_at) VALUES
+INSERT INTO orders (id, patient_id, provider_id, order_type, title, description, status, priority, prerequisites, estimated_revenue, created_at) VALUES
   ('30000000-0000-0000-0000-000000000005',
    '20000000-0000-0000-0000-000000000004',
    '10000000-0000-0000-0000-000000000001',
+   'follow-up',
    '4-Year Well-Child Visit',
-   'Annual wellness exam including developmental screening, vision/hearing tests, and any needed vaccinations.',
+   'Annual wellness exam including developmental screening and vaccinations',
    'unscheduled',
    'routine',
+   ARRAY['Bring immunization card', 'List any concerns about behavior or speech', 'Child should be well-rested'],
+   150,
    NOW() - INTERVAL '2 days')
 ON CONFLICT (id) DO NOTHING;
 
-UPDATE orders SET prerequisites = ARRAY[
-  'Bring immunization card',
-  'List any concerns about behavior, speech, or development',
-  'Child should be well-rested for best cooperation'
-] WHERE id = '30000000-0000-0000-0000-000000000005';
-
 -- Margaret's Orders (Geriatric care)
-INSERT INTO orders (id, patient_id, provider_id, title, description, status, urgency, created_at) VALUES
+INSERT INTO orders (id, patient_id, provider_id, order_type, title, description, status, priority, prerequisites, estimated_revenue, created_at) VALUES
   ('30000000-0000-0000-0000-000000000006',
    '20000000-0000-0000-0000-000000000005',
    '10000000-0000-0000-0000-000000000009',
+   'follow-up',
    'Blood Pressure Check',
-   'Routine blood pressure monitoring and hypertension medication review.',
+   'Routine blood pressure monitoring and hypertension medication review',
    'unscheduled',
    'routine',
+   ARRAY['Bring current blood pressure log', 'List all current medications', 'Note any dizziness or side effects'],
+   100,
    NOW() - INTERVAL '4 days'),
 
   ('30000000-0000-0000-0000-000000000007',
    '20000000-0000-0000-0000-000000000005',
    '10000000-0000-0000-0000-000000000008',
+   'imaging',
    'DEXA Scan - Bone Density',
-   'Follow-up bone density scan to monitor osteoporosis treatment effectiveness.',
+   'Follow-up bone density scan to monitor osteoporosis treatment',
    'unscheduled',
-   'standard',
+   'routine',
+   ARRAY['Fasting not required', 'Wear comfortable clothing without metal', 'Plan for 30 minutes'],
+   250,
    NOW() - INTERVAL '6 days'),
 
   ('30000000-0000-0000-0000-000000000008',
    '20000000-0000-0000-0000-000000000005',
    '10000000-0000-0000-0000-000000000003',
+   'follow-up',
    'Cardiology Consultation - URGENT',
-   'Cardiology follow-up for recent episodes of heart palpitations and dizziness. History of AFib.',
+   'Cardiology follow-up for recent heart palpitations and dizziness',
    'unscheduled',
    'urgent',
+   ARRAY['Bring list of palpitation episodes with dates/times', 'Note any chest pain or shortness of breath', 'Bring current EKG if available', 'List all medications including anticoagulant'],
+   300,
    NOW() - INTERVAL '1 day')
 ON CONFLICT (id) DO NOTHING;
-
-UPDATE orders SET prerequisites = ARRAY[
-  'Bring current blood pressure log',
-  'List all current medications with dosages',
-  'Note any dizziness or side effects'
-] WHERE id = '30000000-0000-0000-0000-000000000006';
-
-UPDATE orders SET prerequisites = ARRAY[
-  'Fasting not required',
-  'Wear comfortable clothing without metal',
-  'Plan for 30 minutes'
-] WHERE id = '30000000-0000-0000-0000-000000000007';
-
-UPDATE orders SET prerequisites = ARRAY[
-  'Bring list of palpitation episodes with dates/times',
-  'Note any chest pain, shortness of breath, or fainting',
-  'Bring current EKG if available',
-  'List all medications including anticoagulant'
-] WHERE id = '30000000-0000-0000-0000-000000000008';
 
 -- =====================================================
 -- 7. ADD PROVIDER SCHEDULES FOR NEW DOCTORS
 -- =====================================================
 
--- Dr. Raj Patel - Pediatrics (Monday-Friday, Children's Hospital)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Raj Patel - Pediatrics
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000001', 'Children''s Hospital - Pediatric Clinic', 1, '09:00', '17:00', ARRAY['Nurse Amy', 'MA Carlos']),
   ('10000000-0000-0000-0000-000000000001', 'Children''s Hospital - Pediatric Clinic', 2, '09:00', '17:00', ARRAY['Nurse Amy', 'MA Carlos']),
   ('10000000-0000-0000-0000-000000000001', 'Children''s Hospital - Pediatric Clinic', 3, '09:00', '17:00', ARRAY['Nurse Amy', 'MA Carlos']),
@@ -389,8 +375,8 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000001', 'Children''s Hospital - Pediatric Clinic', 5, '09:00', '15:00', ARRAY['Nurse Amy'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Lisa Kim - Endocrinology (Mon/Wed/Fri at Main Hospital, Tue/Thu at Diabetes Center)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Lisa Kim - Endocrinology
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000002', 'Main Hospital - Endocrinology', 1, '08:00', '16:00', ARRAY['Nurse Patricia', 'Diabetes Educator Susan']),
   ('10000000-0000-0000-0000-000000000002', 'Diabetes Care Center', 2, '10:00', '18:00', ARRAY['Nurse Mike', 'CDE Jennifer']),
   ('10000000-0000-0000-0000-000000000002', 'Main Hospital - Endocrinology', 3, '08:00', '16:00', ARRAY['Nurse Patricia', 'Diabetes Educator Susan']),
@@ -398,16 +384,16 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000002', 'Main Hospital - Endocrinology', 5, '08:00', '14:00', ARRAY['Nurse Patricia'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Michael Chen - Cardiology (Mon-Thu, rotating locations)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Michael Chen - Cardiology
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000003', 'Heart & Vascular Center', 1, '07:00', '15:00', ARRAY['Cardiac Nurse Rachel', 'Echo Tech Tom']),
   ('10000000-0000-0000-0000-000000000003', 'Heart & Vascular Center', 2, '07:00', '15:00', ARRAY['Cardiac Nurse Rachel', 'Echo Tech Tom']),
   ('10000000-0000-0000-0000-000000000003', 'Downtown Cardiology Clinic', 3, '13:00', '20:00', ARRAY['Nurse Linda']),
   ('10000000-0000-0000-0000-000000000003', 'Downtown Cardiology Clinic', 4, '13:00', '20:00', ARRAY['Nurse Linda'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Amanda Rodriguez - Psychiatry (Mon-Fri, same location)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Amanda Rodriguez - Psychiatry
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000004', 'Behavioral Health Center', 1, '10:00', '18:00', ARRAY['Therapist Sarah']),
   ('10000000-0000-0000-0000-000000000004', 'Behavioral Health Center', 2, '10:00', '18:00', ARRAY['Therapist Sarah']),
   ('10000000-0000-0000-0000-000000000004', 'Behavioral Health Center', 3, '10:00', '18:00', ARRAY['Therapist Sarah']),
@@ -415,16 +401,16 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000004', 'Behavioral Health Center', 5, '12:00', '17:00', ARRAY['Therapist Sarah'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Jennifer Walsh - Ophthalmology (Mon/Tue/Thu clinic, Wed surgery)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Jennifer Walsh - Ophthalmology
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000005', 'Eye Care Associates', 1, '08:00', '17:00', ARRAY['Ophthalmic Tech Kim', 'MA Derek']),
   ('10000000-0000-0000-0000-000000000005', 'Eye Care Associates', 2, '08:00', '17:00', ARRAY['Ophthalmic Tech Kim', 'MA Derek']),
   ('10000000-0000-0000-0000-000000000005', 'Surgical Center', 3, '07:00', '15:00', ARRAY['Surgical Nurse Beth']),
   ('10000000-0000-0000-0000-000000000005', 'Eye Care Associates', 4, '08:00', '17:00', ARRAY['Ophthalmic Tech Kim', 'MA Derek'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Thomas Anderson - Orthopedics (Mon-Fri)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Thomas Anderson - Orthopedics
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000006', 'Sports Medicine & Orthopedics', 1, '08:00', '16:00', ARRAY['Nurse James', 'PT Assistant Kelly']),
   ('10000000-0000-0000-0000-000000000006', 'Sports Medicine & Orthopedics', 2, '08:00', '16:00', ARRAY['Nurse James', 'PT Assistant Kelly']),
   ('10000000-0000-0000-0000-000000000006', 'Sports Medicine & Orthopedics', 3, '08:00', '16:00', ARRAY['Nurse James', 'PT Assistant Kelly']),
@@ -432,8 +418,8 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000006', 'Sports Medicine & Orthopedics', 5, '08:00', '14:00', ARRAY['Nurse James'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Maria Santos - Family Medicine (Mon-Sat, extended hours)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Maria Santos - Family Medicine
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000007', 'Community Health Clinic', 1, '08:00', '17:00', ARRAY['Nurse Diana', 'MA Robert']),
   ('10000000-0000-0000-0000-000000000007', 'Community Health Clinic', 2, '12:00', '20:00', ARRAY['Nurse Kevin']),
   ('10000000-0000-0000-0000-000000000007', 'Community Health Clinic', 3, '08:00', '17:00', ARRAY['Nurse Diana', 'MA Robert']),
@@ -442,8 +428,8 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000007', 'Community Health Clinic', 6, '09:00', '13:00', ARRAY['Nurse Diana'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Robert Kim - Radiology (Mon-Fri, Imaging Center)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Robert Kim - Radiology
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000008', 'Advanced Imaging Center', 1, '07:00', '16:00', ARRAY['Rad Tech Maria', 'Rad Tech John']),
   ('10000000-0000-0000-0000-000000000008', 'Advanced Imaging Center', 2, '07:00', '16:00', ARRAY['Rad Tech Maria', 'Rad Tech John']),
   ('10000000-0000-0000-0000-000000000008', 'Advanced Imaging Center', 3, '07:00', '16:00', ARRAY['Rad Tech Maria', 'Rad Tech John']),
@@ -451,8 +437,8 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
   ('10000000-0000-0000-0000-000000000008', 'Advanced Imaging Center', 5, '07:00', '15:00', ARRAY['Rad Tech Maria'])
 ON CONFLICT DO NOTHING;
 
--- Dr. Emily Johnson - Internal Medicine (Mon-Fri, focus on geriatrics)
-INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_assigned) VALUES
+-- Dr. Emily Johnson - Internal Medicine
+INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, end_time, staff_available) VALUES
   ('10000000-0000-0000-0000-000000000009', 'Senior Care Medical Group', 1, '09:00', '17:00', ARRAY['Nurse Brenda', 'Social Worker Lisa']),
   ('10000000-0000-0000-0000-000000000009', 'Senior Care Medical Group', 2, '09:00', '17:00', ARRAY['Nurse Brenda', 'Social Worker Lisa']),
   ('10000000-0000-0000-0000-000000000009', 'Senior Care Medical Group', 3, '09:00', '17:00', ARRAY['Nurse Brenda', 'Social Worker Lisa']),
@@ -461,30 +447,17 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- 8. SET NOTIFICATION PREFERENCES FOR MARGARET (Voice-First)
+-- 8. SET NOTIFICATION PREFERENCES FOR MARGARET
 -- =====================================================
 
--- Margaret prefers voice calls over SMS/email
+-- Margaret prefers voice calls (for Phase 2)
 UPDATE users
 SET email_notifications_enabled = false,
     sms_notifications_enabled = false
 WHERE id = '20000000-0000-0000-0000-000000000005';
 
--- Note: Voice call preferences will be handled in notification_preferences table
--- once we build the voice call UI in the next step
-
 -- =====================================================
 -- MIGRATION COMPLETE
 -- =====================================================
--- Summary:
--- ✅ Created caregiver_relationships table
--- ✅ Added 9 specialist doctors with profiles
--- ✅ Added Jennifer Martinez (caregiver) and 4 family members
--- ✅ Created 8 realistic medical orders across family
--- ✅ Added provider schedules for all new doctors
--- ✅ Set notification preferences for Margaret (voice-first)
---
--- Next Steps:
--- 1. Build caregiver dashboard UI
--- 2. Add voice call preferences to notification settings
--- 3. Implement multi-patient AI scheduling
+
+SELECT 'Enhanced demo data loaded successfully! Jennifer Martinez family and 9 specialist doctors are ready.' as message;
