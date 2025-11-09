@@ -66,12 +66,24 @@ export async function matchCancellationWithPatients(
       return;
     }
 
-    // 5. Take top 5 by karma
-    const topMatches = eligiblePatients.slice(0, 5);
+    // 5. Determine tier based on karma scores
+    const highKarmaPatients = eligiblePatients.filter((p: any) => p.patient_profiles.karma_score >= 80);
+    const mediumKarmaPatients = eligiblePatients.filter((p: any) => p.patient_profiles.karma_score >= 60 && p.patient_profiles.karma_score < 80);
 
-    console.log(`Notifying top ${topMatches.length} matches`);
+    // Tier 1: Top 5 high-karma patients (80+)
+    const tier1Patients = highKarmaPatients.slice(0, 5);
+    const topMatches = tier1Patients.length > 0 ? tier1Patients : mediumKarmaPatients.slice(0, 5);
 
-    // 6. Create notifications for matches
+    console.log(`Notifying top ${topMatches.length} matches (Tier 1)`);
+
+    // 6. Create tier info for urgency messaging
+    const tierInfo = {
+      tier_number: 1,
+      total_notified: topMatches.length,
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 60 minutes from now
+    };
+
+    // 7. Create notifications for matches with tier info
     for (const match of topMatches) {
       const { error: notifError } = await supabaseAdmin
         .from('notifications')
@@ -79,16 +91,18 @@ export async function matchCancellationWithPatients(
           user_id: match.patient_id,
           notification_type: 'cancellation_alert',
           title: '🎯 Earlier Slot Available!',
-          message: `An appointment slot opened up on ${new Date(appointment.scheduled_start).toLocaleDateString()} at ${new Date(appointment.scheduled_start).toLocaleTimeString()}. Claim it to move up your appointment!`,
+          message: `An appointment slot just opened on ${new Date(appointment.scheduled_start).toLocaleDateString()} at ${new Date(appointment.scheduled_start).toLocaleTimeString()}. You're among the highest-karma patients being offered this opportunity!`,
           related_appointment_id: appointment.id,
           related_order_id: match.id,
-          priority: 'high'
+          priority: 'high',
+          tier_info: tierInfo,
+          action_url: `/patient/cancellations/${appointment.id}`
         });
 
       if (notifError) {
         console.error('Error creating notification:', notifError);
       } else {
-        console.log(`✓ Notified patient ${match.patient_id}`);
+        console.log(`✓ Notified patient ${match.patient_id} (Tier 1, karma: ${match.patient_profiles.karma_score})`);
       }
     }
 

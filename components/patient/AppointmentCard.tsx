@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Appointment } from '@/lib/types';
+import { formatDemoDateTime, formatDemoDate } from '@/lib/date-utils';
 
 interface AppointmentCardProps {
   appointment: Appointment & {
@@ -110,7 +111,7 @@ export default function AppointmentCard({ appointment, showTitle = true, onConfi
                 />
               </svg>
               <span className="font-semibold">
-                {new Date(appointment.scheduled_start).toLocaleString()}
+                {formatDemoDateTime(appointment.scheduled_start)}
               </span>
             </div>
 
@@ -185,7 +186,7 @@ export default function AppointmentCard({ appointment, showTitle = true, onConfi
       {appointment.confirmed_at && (
         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-sm text-green-800 font-semibold">
-            ✓ Confirmed on {new Date(appointment.confirmed_at).toLocaleDateString()}
+            ✓ Confirmed on {formatDemoDate(appointment.confirmed_at)}
           </p>
         </div>
       )}

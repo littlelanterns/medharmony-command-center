@@ -5,12 +5,15 @@ import { Order } from '@/lib/types';
 import Header from '@/components/shared/Header';
 import RevenueMeter from '@/components/provider/RevenueMeter';
 import OrderCard from '@/components/provider/OrderCard';
+import OrdersModal from '@/components/provider/OrdersModal';
 import Card from '@/components/ui/Card';
 
 export default function ProviderDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'at-risk' | 'protected'>('at-risk');
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -63,6 +66,22 @@ export default function ProviderDashboard() {
   const totalRevenue = orders.reduce((sum, o) => sum + (o.estimated_revenue || 200), 0);
   const atRiskRevenue = unscheduledOrders.reduce((sum, o) => sum + (o.estimated_revenue || 200), 0);
 
+  const handleAtRiskClick = () => {
+    setModalType('at-risk');
+    setModalOpen(true);
+  };
+
+  const handleProtectedClick = () => {
+    setModalType('protected');
+    setModalOpen(true);
+  };
+
+  const modalOrders = modalType === 'at-risk' ? unscheduledOrders : scheduledOrders;
+  const modalTitle = modalType === 'at-risk' ? '⚠️ At-Risk Revenue' : '✅ Protected Revenue';
+  const modalSubtitle = modalType === 'at-risk'
+    ? `${unscheduledOrders.length} unscheduled orders need patient engagement`
+    : `${scheduledOrders.length} scheduled orders securing your revenue`;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -88,11 +107,20 @@ export default function ProviderDashboard() {
         {/* Quick Actions */}
         <div className="mb-6 flex gap-4">
           <a
+            href="/provider/calendar"
+            className="px-6 py-3 bg-gradient-to-r from-[#008080] to-[#006666] text-white font-semibold rounded-lg hover:from-[#006666] hover:to-[#005555] transition flex items-center gap-2 shadow-md"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+            </svg>
+            View My Calendar
+          </a>
+          <a
             href="/provider/availability"
             className="px-6 py-3 bg-white border-2 border-[#008080] text-[#008080] font-semibold rounded-lg hover:bg-[#008080] hover:text-white transition flex items-center gap-2"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
             </svg>
             Manage Your Availability
           </a>
@@ -105,6 +133,8 @@ export default function ProviderDashboard() {
           unscheduledCount={unscheduledOrders.length}
           scheduledCount={scheduledOrders.length}
           totalCount={orders.length}
+          onAtRiskClick={handleAtRiskClick}
+          onProtectedClick={handleProtectedClick}
         />
 
         <Card>
@@ -134,6 +164,16 @@ export default function ProviderDashboard() {
           )}
         </Card>
       </main>
+
+      {/* Orders Modal */}
+      <OrdersModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        orders={modalOrders}
+        title={modalTitle}
+        subtitle={modalSubtitle}
+        type={modalType}
+      />
     </div>
   );
 }

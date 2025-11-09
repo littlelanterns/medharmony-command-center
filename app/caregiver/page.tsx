@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { formatDemoDate, formatDemoTime } from '@/lib/date-utils';
+import FamilyMemberModal from '@/components/caregiver/FamilyMemberModal';
+import NotificationBell from '@/components/shared/NotificationBell';
 
 interface FamilyMember {
   id: string;
@@ -24,8 +27,10 @@ interface Order {
   title: string;
   description: string;
   status: string;
-  urgency: string;
+  priority: string;
   prerequisites: string[];
+  requires_confirmation?: boolean;
+  duration_minutes?: number;
   provider?: {
     full_name: string;
     specialty: string;
@@ -70,6 +75,7 @@ export default function CaregiverDashboard() {
   const [bookingPatientId, setBookingPatientId] = useState<string>('');
   const [bookingProviderId, setBookingProviderId] = useState<string>('');
   const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [selectedMemberForModal, setSelectedMemberForModal] = useState<FamilyMember | null>(null);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -125,6 +131,32 @@ export default function CaregiverDashboard() {
         });
       }
 
+      // Check if the caregiver also has a patient profile (like Jennifer)
+      const { data: caregiverPatientProfile } = await supabase
+        .from('patient_profiles')
+        .select('date_of_birth, medical_conditions, karma_score')
+        .eq('id', caregiverId)
+        .single();
+
+      if (caregiverPatientProfile) {
+        // Add caregiver themselves to the family list
+        const { data: caregiverUser } = await supabase
+          .from('users')
+          .select('full_name, email')
+          .eq('id', caregiverId)
+          .single();
+
+        if (caregiverUser) {
+          members.unshift({ // Add at the beginning
+            id: caregiverId,
+            full_name: caregiverUser.full_name,
+            email: caregiverUser.email,
+            relationship_type: 'self',
+            patient_profile: caregiverPatientProfile,
+          });
+        }
+      }
+
       setFamilyMembers(members);
 
       // Load all orders for all family members
@@ -140,37 +172,62 @@ export default function CaregiverDashboard() {
   };
 
   const loadOrders = async (patientIds: string[], members: FamilyMember[]) => {
-    const { data: ordersData } = await supabase
+    // Load orders with simplified query (no nested joins)
+    const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
-      .select(`
-        *,
-        provider:provider_profiles!orders_provider_id_fkey (
+      .select('*')
+      .in('patient_id', patientIds)
+      .order('created_at', { ascending: false });
+
+    if (ordersError) {
+      console.error('Error loading orders:', ordersError);
+      console.error('Error details:', JSON.stringify(ordersError, null, 2));
+    }
+
+    console.log('Loaded orders for patients:', patientIds);
+    console.log('Orders data:', ordersData);
+
+    if (ordersData) {
+      // Load prerequisites and provider info separately
+      const orderIds = ordersData.map(o => o.id);
+
+      const { data: prerequisites } = await supabase
+        .from('prerequisites')
+        .select('*')
+        .in('order_id', orderIds);
+
+      const providerIds = [...new Set(ordersData.map(o => o.provider_id).filter(Boolean))];
+      const { data: providers } = await supabase
+        .from('provider_profiles')
+        .select(`
           id,
           specialty,
           user:users!provider_profiles_id_fkey (
             full_name
           )
-        )
-      `)
-      .in('patient_id', patientIds)
-      .order('created_at', { ascending: false });
+        `)
+        .in('id', providerIds);
 
-    if (ordersData) {
       const ordersWithPatientInfo: Order[] = ordersData.map((order, index) => {
         const patient = members.find(m => m.id === order.patient_id);
         const patientIndex = members.findIndex(m => m.id === order.patient_id);
         const colorScheme = PATIENT_COLORS[patientIndex % PATIENT_COLORS.length];
 
+        const orderPrereqs = prerequisites?.filter(p => p.order_id === order.id) || [];
+        const providerProfile = providers?.find(p => p.id === order.provider_id);
+
         return {
           ...order,
           patient_name: patient?.full_name || 'Unknown',
           patient_color: colorScheme.bg,
-          provider: order.provider
+          provider: providerProfile
             ? {
-                full_name: (order.provider as any).user.full_name,
-                specialty: (order.provider as any).specialty,
+                id: providerProfile.id,
+                full_name: (providerProfile as any).user?.full_name || 'Unknown',
+                specialty: providerProfile.specialty,
               }
             : undefined,
+          prerequisites: orderPrereqs.map((p: any) => p.description),
         };
       });
 
@@ -257,7 +314,7 @@ export default function CaregiverDashboard() {
         patientId: o.patient_id,
         patientName: o.patient_name,
         providerId: o.provider_id,
-        urgency: o.urgency,
+        priority: o.priority,
       }));
 
       // Call multi-patient AI scheduling API
@@ -283,8 +340,7 @@ export default function CaregiverDashboard() {
         if (result.appointments && result.appointments.length > 0) {
           message += 'Scheduled appointments:\n';
           result.appointments.forEach((appt: any) => {
-            const date = new Date(appt.scheduled_start);
-            message += `\n• ${appt.patientName}: ${date.toLocaleDateString()} at ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+            message += `\n• ${appt.patientName}: ${formatDemoDate(appt.scheduled_start)} at ${formatDemoTime(appt.scheduled_start)}`;
             if (appt.recommendation?.reasoning) {
               message += `\n  Reason: ${appt.recommendation.reasoning}`;
             }
@@ -405,11 +461,11 @@ export default function CaregiverDashboard() {
     ? appointments
     : appointments.filter(a => a.patient_id === selectedPatientId);
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-300';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'standard': return 'bg-blue-100 text-blue-800 border-blue-300';
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'stat': return 'bg-red-100 text-red-800 border-red-300';
+      case 'urgent': return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'routine': return 'bg-blue-100 text-blue-800 border-blue-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -426,19 +482,32 @@ export default function CaregiverDashboard() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-[#008080] text-white p-6 shadow-lg">
         <div className="max-w-7xl mx-auto">
-          <button
-            onClick={() => router.push('/')}
-            className="text-white/80 hover:text-white mb-2 flex items-center"
-          >
-            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
-            Back to Home
-          </button>
-          <h1 className="text-3xl font-bold">Family Health Manager</h1>
-          <p className="text-white/90 mt-1">
-            Managing healthcare for {familyMembers.length} family member{familyMembers.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <button
+                onClick={() => router.push('/')}
+                className="text-white/80 hover:text-white mb-2 flex items-center"
+              >
+                <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                Back to Home
+              </button>
+              <h1 className="text-3xl font-bold">Family Health Manager</h1>
+              <p className="text-white/90 mt-1">
+                Managing healthcare for {familyMembers.length} family member{familyMembers.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              {user && <NotificationBell userId={user.id} userRole="caregiver" />}
+              <button
+                onClick={() => router.push('/caregiver/preferences')}
+                className="px-6 py-3 bg-white text-[#008080] font-semibold rounded-lg hover:bg-gray-100 transition shadow-md"
+              >
+                📅 Family Availability
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -459,7 +528,7 @@ export default function CaregiverDashboard() {
                   className={`${colorScheme.bg} border-2 ${colorScheme.border} rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg ${
                     selectedPatientId === member.id ? 'ring-4 ring-offset-2 ring-[#008080]' : ''
                   }`}
-                  onClick={() => setSelectedPatientId(member.id === selectedPatientId ? 'all' : member.id)}
+                  onClick={() => setSelectedMemberForModal(member)}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -612,16 +681,8 @@ export default function CaregiverDashboard() {
                         </div>
                         <h3 className="font-bold text-gray-900 text-lg">{appt.order.title}</h3>
                         <div className="text-sm text-gray-600 mt-2 space-y-1">
-                          <p>📅 {appointmentDate.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}</p>
-                          <p>⏰ {appointmentDate.toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}</p>
+                          <p>📅 {formatDemoDate(appointmentDate)}</p>
+                          <p>⏰ {formatDemoTime(appointmentDate)}</p>
                           <p>📍 {appt.location}</p>
                         </div>
                       </div>
@@ -679,8 +740,8 @@ export default function CaregiverDashboard() {
                           <span className={`${colorScheme.badge} px-3 py-1 rounded-full text-sm font-semibold ${colorScheme.text}`}>
                             {patient?.full_name}
                           </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getUrgencyColor(order.urgency)}`}>
-                            {order.urgency.toUpperCase()}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(order.priority)}`}>
+                            {order.priority.toUpperCase()}
                           </span>
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             order.status === 'scheduled'
@@ -737,6 +798,38 @@ export default function CaregiverDashboard() {
           )}
         </div>
       </main>
+
+      {/* Family Member Detail Modal */}
+      {selectedMemberForModal && (
+        <FamilyMemberModal
+          member={selectedMemberForModal}
+          orders={orders}
+          appointments={appointments}
+          colorScheme={
+            PATIENT_COLORS[familyMembers.findIndex((m) => m.id === selectedMemberForModal.id) % PATIENT_COLORS.length]
+          }
+          userId={user?.id}
+          onClose={() => setSelectedMemberForModal(null)}
+          onScheduleOrder={(orderId) => {
+            const order = orders.find((o) => o.id === orderId);
+            if (order) {
+              router.push(`/patient/orders/${orderId}?patientId=${order.patient_id}&autoSchedule=true`);
+            }
+            setSelectedMemberForModal(null);
+          }}
+          onRescheduleAppointment={(orderId, patientId) => {
+            router.push(`/patient/orders/${orderId}?patientId=${patientId}&reschedule=true&autoSchedule=true`);
+            setSelectedMemberForModal(null);
+          }}
+          onCancelAppointment={async (appointmentId) => {
+            await handleCancelAppointment(appointmentId, selectedMemberForModal.full_name);
+            // Reload data to refresh the modal
+            if (user.id) {
+              await loadFamilyData(user.id);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

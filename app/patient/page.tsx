@@ -20,6 +20,7 @@ export default function PatientDashboard() {
   const [providers, setProviders] = useState<any[]>([]);
   const [bookingProviderId, setBookingProviderId] = useState<string>('');
   const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [showUnscheduledModal, setShowUnscheduledModal] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -221,23 +222,29 @@ export default function PatientDashboard() {
           />
         ))}
 
-        {/* Alert for unscheduled orders */}
+        {/* Alert for unscheduled orders - Clickable */}
         {unscheduledOrders.length > 0 && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-6 mb-8 rounded-r-lg">
+          <button
+            onClick={() => setShowUnscheduledModal(true)}
+            className="w-full bg-red-50 border-l-4 border-red-500 p-6 mb-8 rounded-r-lg hover:bg-red-100 transition cursor-pointer text-left"
+          >
             <div className="flex items-start">
               <svg className="w-6 h-6 text-red-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl font-bold text-red-800 mb-2">
                   You have {unscheduledOrders.length} order{unscheduledOrders.length !== 1 ? 's' : ''} that need{unscheduledOrders.length === 1 ? 's' : ''} scheduling
                 </h2>
                 <p className="text-red-700">
                   Please schedule {unscheduledOrders.length === 1 ? 'this order' : 'these orders'} as soon as possible to complete your care plan.
                 </p>
+                <p className="text-red-600 font-semibold mt-2 text-sm">
+                  Click to view details →
+                </p>
               </div>
             </div>
-          </div>
+          </button>
         )}
 
         {/* Stats Cards */}
@@ -399,6 +406,77 @@ export default function PatientDashboard() {
           </Card>
         )}
       </main>
+
+      {/* Unscheduled Orders Modal */}
+      {showUnscheduledModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowUnscheduledModal(false)}>
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="bg-red-50 border-b-4 border-red-500 p-6 sticky top-0 z-10">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-red-900 mb-2">
+                    Orders Needing Scheduling ({unscheduledOrders.length})
+                  </h2>
+                  <p className="text-red-700">Schedule these orders to complete your care plan</p>
+                </div>
+                <button
+                  onClick={() => setShowUnscheduledModal(false)}
+                  className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-white/50"
+                  aria-label="Close"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-4">
+              {unscheduledOrders.map((order: any) => (
+                <div key={order.id} className="bg-white border-2 border-red-200 rounded-lg p-5 hover:shadow-md transition">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-900 mb-1">{order.title}</h3>
+                      <p className="text-sm text-gray-600 mb-2">{order.description}</p>
+                      <p className="text-sm text-gray-600">
+                        From: <span className="font-semibold">{order.provider?.full_name || 'Your Provider'}</span>
+                      </p>
+                      {order.priority !== 'routine' && (
+                        <span className="inline-block mt-2 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-bold">
+                          {order.priority.toUpperCase()} PRIORITY
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {order.prerequisites && order.prerequisites.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-1">Prerequisites:</p>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        {order.prerequisites.map((prereq: any, i: number) => (
+                          <li key={i}>• {prereq.description || prereq}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <Link href={`/patient/orders/${order.id}`}>
+                    <button className="w-full px-4 py-2 bg-[#008080] text-white rounded-lg font-semibold hover:bg-[#006666] transition">
+                      🤖 Schedule Now with AI
+                    </button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,12 +18,15 @@ export default function CreateOrderPage() {
     priority: 'routine' as 'routine' | 'urgent' | 'stat',
     dueWithinDays: 14,
     estimatedRevenue: 200,
+    durationMinutes: 30,
   });
 
   const [aiSuggestions, setAiSuggestions] = useState<Array<{ type: string; description: string }>>([]);
   const [selectedPrerequisites, setSelectedPrerequisites] = useState<string[]>([]);
   const [customPrerequisites, setCustomPrerequisites] = useState<Array<{ description: string }>>([]);
   const [customNotes, setCustomNotes] = useState('');
+  const [durationReasoning, setDurationReasoning] = useState<string>('');
+  const [loadingDuration, setLoadingDuration] = useState(false);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -34,6 +37,13 @@ export default function CreateOrderPage() {
   // Fetch AI suggestions when order type or title changes
   useEffect(() => {
     fetchAISuggestions();
+  }, [formData.orderType, formData.title]);
+
+  // Fetch AI duration estimate when order type or title changes
+  useEffect(() => {
+    if (formData.title.length > 3) {
+      fetchDurationEstimate();
+    }
   }, [formData.orderType, formData.title]);
 
   const loadPatients = async () => {
@@ -70,6 +80,33 @@ export default function CreateOrderPage() {
       console.error('Error fetching AI suggestions:', error);
     } finally {
       setLoadingAISuggestions(false);
+    }
+  };
+
+  const fetchDurationEstimate = async () => {
+    setLoadingDuration(true);
+
+    try {
+      const response = await fetch('/api/ai/estimate-duration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderType: formData.orderType,
+          title: formData.title,
+          description: formData.description
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.duration_minutes) {
+        setFormData(prev => ({ ...prev, durationMinutes: data.duration_minutes }));
+        setDurationReasoning(data.reasoning || '');
+      }
+    } catch (error) {
+      console.error('Error fetching duration estimate:', error);
+    } finally {
+      setLoadingDuration(false);
     }
   };
 
@@ -123,6 +160,7 @@ export default function CreateOrderPage() {
           priority: formData.priority,
           dueWithinDays: formData.dueWithinDays,
           estimatedRevenue: formData.estimatedRevenue,
+          durationMinutes: formData.durationMinutes,
           prerequisites,
           customNotes,
         }),
@@ -230,6 +268,55 @@ export default function CreateOrderPage() {
                   <span className="capitalize">{priority}</span>
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* AI-Estimated Duration */}
+          <div className="mb-6">
+            <label className="block text-gray-700 font-semibold mb-2">
+              Appointment Duration
+              {loadingDuration && <span className="ml-2 text-sm text-gray-500">(AI estimating...)</span>}
+            </label>
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 border border-green-200">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="5"
+                      max="480"
+                      step="5"
+                      value={formData.durationMinutes}
+                      onChange={(e) => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 30 })}
+                      className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#008080] focus:border-transparent font-semibold text-lg"
+                    />
+                    <span className="text-gray-700 font-medium">minutes</span>
+                    <span className="text-gray-500">
+                      ({Math.floor(formData.durationMinutes / 60) > 0
+                        ? `${Math.floor(formData.durationMinutes / 60)} hr${Math.floor(formData.durationMinutes / 60) > 1 ? 's' : ''} ${formData.durationMinutes % 60 > 0 ? `${formData.durationMinutes % 60} min` : ''}`
+                        : `${formData.durationMinutes} min`
+                      })
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchDurationEstimate}
+                  disabled={loadingDuration}
+                  className="px-4 py-2 bg-[#008080] text-white rounded-lg font-semibold hover:bg-[#006666] transition disabled:opacity-50 text-sm"
+                >
+                  🤖 Re-estimate
+                </button>
+              </div>
+              {durationReasoning && (
+                <div className="bg-white/70 rounded p-3 text-sm text-gray-700">
+                  <span className="font-semibold text-green-700">✨ AI Reasoning: </span>
+                  {durationReasoning}
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Tip: This duration affects appointment scheduling. Adjust as needed for your practice.
+              </p>
             </div>
           </div>
 

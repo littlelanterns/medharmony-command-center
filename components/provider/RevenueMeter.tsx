@@ -7,6 +7,8 @@ interface RevenueMeterProps {
   unscheduledCount: number;
   scheduledCount: number;
   totalCount: number;
+  onAtRiskClick?: () => void;
+  onProtectedClick?: () => void;
 }
 
 export default function RevenueMeter({
@@ -16,29 +18,43 @@ export default function RevenueMeter({
   unscheduledCount,
   scheduledCount,
   totalCount,
+  onAtRiskClick,
+  onProtectedClick,
 }: RevenueMeterProps) {
   return (
     <Card className="mb-8">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Revenue Protection Meter</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* At Risk */}
-        <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
-          <div className="text-red-600 font-semibold mb-2">AT RISK</div>
+        {/* At Risk - Clickable */}
+        <button
+          onClick={onAtRiskClick}
+          className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600 text-left hover:bg-red-100 transition cursor-pointer"
+        >
+          <div className="text-red-600 font-semibold mb-2 flex items-center justify-between">
+            <span>AT RISK</span>
+            {unscheduledCount > 0 && <span className="text-sm">👁️ View</span>}
+          </div>
           <div className="text-4xl font-bold text-red-700">${atRiskRevenue.toLocaleString()}</div>
           <div className="text-gray-600 mt-2">
             {unscheduledCount} unscheduled {unscheduledCount === 1 ? 'order' : 'orders'}
           </div>
-        </div>
+        </button>
 
-        {/* Protected */}
-        <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
-          <div className="text-green-600 font-semibold mb-2">PROTECTED</div>
+        {/* Protected - Clickable */}
+        <button
+          onClick={onProtectedClick}
+          className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600 text-left hover:bg-green-100 transition cursor-pointer"
+        >
+          <div className="text-green-600 font-semibold mb-2 flex items-center justify-between">
+            <span>PROTECTED</span>
+            {scheduledCount > 0 && <span className="text-sm">👁️ View</span>}
+          </div>
           <div className="text-4xl font-bold text-green-700">${protectedRevenue.toLocaleString()}</div>
           <div className="text-gray-600 mt-2">
             {scheduledCount} scheduled {scheduledCount === 1 ? 'order' : 'orders'}
           </div>
-        </div>
+        </button>
 
         {/* Total Value */}
         <div className="bg-blue-50 rounded-lg p-6 border-l-4 border-blue-600">

@@ -9,6 +9,7 @@ import AIScheduler from '@/components/patient/AIScheduler';
 import PrerequisiteChecklist from '@/components/patient/PrerequisiteChecklist';
 import AppointmentCard from '@/components/patient/AppointmentCard';
 import { AIScheduleOption } from '@/lib/types';
+import { formatDemoDateTime } from '@/lib/date-utils';
 
 export default function OrderDetailPage() {
   const router = useRouter();
@@ -52,8 +53,8 @@ export default function OrderDetailPage() {
       );
 
       if (existingAppointment) {
-        const oldApptTime = new Date(existingAppointment.scheduled_start).toLocaleString();
-        const newApptTime = new Date(option.datetime).toLocaleString();
+        const oldApptTime = formatDemoDateTime(existingAppointment.scheduled_start);
+        const newApptTime = formatDemoDateTime(option.datetime);
 
         const confirmed = window.confirm(
           `⚠️ RESCHEDULE CONFIRMATION\n\n` +
@@ -68,9 +69,10 @@ export default function OrderDetailPage() {
         }
       }
 
-      // Calculate appointment end time (30 minutes after start)
+      // Calculate appointment end time using order's duration
+      const durationMinutes = order.duration_minutes || 30;
       const startTime = new Date(option.datetime);
-      const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+      const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
       const response = await fetch('/api/appointments', {
         method: 'POST',
@@ -257,6 +259,7 @@ export default function OrderDetailPage() {
             title: order.title,
             priority: order.priority,
           }}
+          durationMinutes={order.duration_minutes || 30}
           prerequisites={order.prerequisites || []}
           onOptionSelected={handleBookOption}
           autoRun={autoSchedule}

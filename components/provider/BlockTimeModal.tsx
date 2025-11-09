@@ -24,8 +24,12 @@ export default function BlockTimeModal({ providerId, onClose, onSuccess }: Block
     setBlocking(true);
 
     try {
-      const startDatetime = `${formData.startDate}T${formData.startTime}:00`;
-      const endDatetime = `${formData.endDate}T${formData.endTime}:00`;
+      // Create ISO timestamps in local timezone
+      // The browser will automatically convert to UTC when sending to server
+      const startDatetime = new Date(`${formData.startDate}T${formData.startTime}:00`).toISOString();
+      const endDatetime = new Date(`${formData.endDate}T${formData.endTime}:00`).toISOString();
+
+      console.log('Blocking time from', startDatetime, 'to', endDatetime);
 
       const response = await fetch('/api/provider/block-time', {
         method: 'POST',

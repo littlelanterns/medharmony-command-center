@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatDemoDate, formatDemoTime } from '@/lib/date-utils';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,15 @@ export async function POST(request: NextRequest) {
       .eq('patient_id', patientId)
       .eq('is_active', true);
 
+    // Fetch the order to get provider_id
+    const { data: orderData } = await supabase
+      .from('orders')
+      .select('provider_id')
+      .eq('id', orderId)
+      .single();
+
+    const providerId = orderData?.provider_id;
+
     // Fetch patient's existing appointments to avoid conflicts
     const { data: existingAppointments } = await supabase
       .from('appointments')
@@ -26,10 +36,30 @@ export async function POST(request: NextRequest) {
       .gte('scheduled_start', new Date().toISOString())
       .order('scheduled_start', { ascending: true });
 
+    // Fetch provider's existing appointments to avoid conflicts
+    const { data: providerAppointments } = await supabase
+      .from('appointments')
+      .select('scheduled_start, scheduled_end, patient:users!patient_id(full_name)')
+      .eq('provider_id', providerId)
+      .in('status', ['scheduled', 'confirmed'])
+      .gte('scheduled_start', new Date().toISOString())
+      .order('scheduled_start', { ascending: true });
+
+    // Fetch provider's blocked time (vacation, sick days, etc.)
+    const { data: providerTimeBlocks } = await supabase
+      .from('provider_time_blocks')
+      .select('start_datetime, end_datetime, block_type, reason')
+      .eq('provider_id', providerId)
+      .eq('is_active', true)
+      .gte('end_datetime', new Date().toISOString())
+      .order('start_datetime', { ascending: true });
+
     // Fetch provider schedules
     const { data: schedules } = await supabase
       .from('provider_schedules')
       .select('*')
+      .eq('provider_id', providerId)
+      .eq('is_active', true)
       .order('day_of_week', { ascending: true });
 
     // Build patient preferences string
@@ -64,13 +94,34 @@ export async function POST(request: NextRequest) {
     // Build existing appointments string (CRITICAL: Must avoid these times!)
     let existingApptsText = '';
     if (existingAppointments && existingAppointments.length > 0) {
-      existingApptsText = '\n\n🚨 EXISTING APPOINTMENTS (MUST AVOID CONFLICTS!):\n';
+      existingApptsText = '\n\n🚨 PATIENT\'S EXISTING APPOINTMENTS (MUST AVOID CONFLICTS!):\n';
       existingAppointments.forEach(appt => {
-        const start = new Date(appt.scheduled_start);
-        const end = new Date(appt.scheduled_end);
-        existingApptsText += `- ${start.toLocaleDateString()} ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}: ${(appt as any).order?.title || 'Appointment'}\n`;
+        existingApptsText += `- ${formatDemoDate(appt.scheduled_start)} ${formatDemoTime(appt.scheduled_start)} - ${formatDemoTime(appt.scheduled_end)}: ${(appt as any).order?.title || 'Appointment'}\n`;
       });
-      existingApptsText += '\n⚠️ DO NOT suggest any times that overlap with these appointments!\n';
+      existingApptsText += '\n⚠️ DO NOT suggest any times that overlap with patient appointments!\n';
+    }
+
+    // Build provider's appointments string
+    let providerApptsText = '';
+    if (providerAppointments && providerAppointments.length > 0) {
+      providerApptsText = '\n\n🚨 PROVIDER\'S EXISTING APPOINTMENTS (PROVIDER IS BUSY!):\n';
+      providerAppointments.forEach(appt => {
+        const patientName = (appt as any).patient?.full_name || 'Patient';
+        providerApptsText += `- ${formatDemoDate(appt.scheduled_start)} ${formatDemoTime(appt.scheduled_start)} - ${formatDemoTime(appt.scheduled_end)}: ${patientName}\n`;
+      });
+      providerApptsText += '\n⚠️ Provider is NOT available during these times!\n';
+    }
+
+    // Build provider's blocked time string
+    let blockedTimeText = '';
+    if (providerTimeBlocks && providerTimeBlocks.length > 0) {
+      blockedTimeText = '\n\n🚫 PROVIDER UNAVAILABLE PERIODS (VACATION, SICK DAYS, ETC.):\n';
+      providerTimeBlocks.forEach(block => {
+        const blockType = block.block_type.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const reason = block.reason ? ` - ${block.reason}` : '';
+        blockedTimeText += `- ${formatDemoDate(block.start_datetime)} ${formatDemoTime(block.start_datetime)} to ${formatDemoDate(block.end_datetime)} ${formatDemoTime(block.end_datetime)}: ${blockType}${reason}\n`;
+      });
+      blockedTimeText += '\n⚠️ Provider is completely UNAVAILABLE during these blocked periods!\n';
     }
 
     // Build provider schedules string
@@ -104,6 +155,8 @@ ${prerequisites.map((p: any) => `- ${p.description}`).join('\n')}
 
 ${patientPrefsText}
 ${existingApptsText}
+${providerApptsText}
+${blockedTimeText}
 
 ${schedulesText}
 
@@ -113,13 +166,16 @@ CURRENT TIME: ${new Date().toISOString()}
 Generate 3 ranked appointment options. Consider:
 1. Patient's preferred times of day
 2. Avoiding all recurring and one-time unavailable blocks
-3. 🚨 CRITICAL: Avoiding ALL existing appointments (no time conflicts or overlaps!)
-4. Meeting all prerequisites (fasting = morning appointment)
-5. Respecting the notice requirement (${hoursNeeded} hours minimum)
-6. Earliness (sooner is better, but not too urgent - at least 2-3 days out)
-7. Different locations for variety
-8. Only schedule during actual provider operating hours
-9. Assign actual staff members from the available list
+3. 🚨 CRITICAL: Avoiding ALL patient's existing appointments (no time conflicts or overlaps!)
+4. 🚨 CRITICAL: Avoiding ALL provider's existing appointments (provider must be available!)
+5. 🚫 CRITICAL: NEVER schedule during provider blocked time periods (vacation, sick days, etc.)
+6. Meeting all prerequisites (fasting = morning appointment)
+7. Respecting the notice requirement (${hoursNeeded} hours minimum)
+8. Earliness (sooner is better, but not too urgent - at least 2-3 days out)
+9. Different locations for variety
+10. Only schedule during actual provider operating hours
+11. 🕐 MANDATORY: Use ONLY standard time slots ending in :00, :15, :30, or :45 (e.g., 9:00, 9:15, 9:30, 9:45). NEVER use odd times like 9:22 or 10:37.
+12. Assign actual staff members from the available list
 
 Return ONLY valid JSON in this exact format (no markdown, no code blocks):
 {
@@ -194,14 +250,27 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
         const dayOfWeek = candidateDate.getDay();
         const isBlocked = recurringBlocks.some(block => block.day_of_week === dayOfWeek);
 
-        // Check if this date/time conflicts with existing appointments
-        const hasConflict = existingAppointments?.some(appt => {
+        // Check if this date/time conflicts with patient's existing appointments
+        const hasPatientConflict = existingAppointments?.some(appt => {
           const apptDate = new Date(appt.scheduled_start);
           return candidateDate.toDateString() === apptDate.toDateString();
         }) || false;
 
-        // Check if it's a weekday (Monday-Friday)
-        if (dayOfWeek >= 1 && dayOfWeek <= 5 && !isBlocked && !hasConflict) {
+        // Check if this date/time conflicts with provider's existing appointments
+        const hasProviderConflict = providerAppointments?.some(appt => {
+          const apptDate = new Date(appt.scheduled_start);
+          return candidateDate.toDateString() === apptDate.toDateString();
+        }) || false;
+
+        // Check if this date falls within provider's blocked time
+        const isProviderBlocked = providerTimeBlocks?.some(block => {
+          const blockStart = new Date(block.start_datetime);
+          const blockEnd = new Date(block.end_datetime);
+          return candidateDate >= blockStart && candidateDate <= blockEnd;
+        }) || false;
+
+        // Check if it's a weekday (Monday-Friday) and no conflicts
+        if (dayOfWeek >= 1 && dayOfWeek <= 5 && !isBlocked && !hasPatientConflict && !hasProviderConflict && !isProviderBlocked) {
           availableDates.push(new Date(candidateDate));
         }
 
@@ -218,15 +287,20 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
       const preferredHour = preferredTimes.includes('morning') ? 9 :
                            preferredTimes.includes('afternoon') ? 14 : 10;
 
-      // Helper to create proper datetime string without timezone issues
+      // Helper to create proper datetime string in Central Time
+      // This creates a timestamp that will display correctly in Central Time
       const createAppointmentTime = (date: Date, hour: number, minute: number) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const hourStr = String(hour).padStart(2, '0');
         const minStr = String(minute).padStart(2, '0');
-        // Return in local time format that matches provider schedules
-        return `${year}-${month}-${day}T${hourStr}:${minStr}:00`;
+
+        // Create timestamp: YYYY-MM-DD HH:MM:SS
+        // When this gets stored in Postgres with the AT TIME ZONE conversion,
+        // it will be interpreted as Central Time and stored as UTC
+        // Format: ISO string without Z suffix, will be handled by Postgres
+        return `${year}-${month}-${day}T${hourStr}:${minStr}:00-06:00`; // -06:00 is Central Standard Time offset
       };
 
       // Return mock data for demo purposes

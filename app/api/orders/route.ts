@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       priority,
       dueWithinDays,
       estimatedRevenue,
+      durationMinutes,
       prerequisites,
       customNotes
     } = body;
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
         due_within_days: dueWithinDays,
         status: 'unscheduled',
         estimated_revenue: estimatedRevenue,
+        duration_minutes: durationMinutes || 30,
       })
       .select()
       .single();
