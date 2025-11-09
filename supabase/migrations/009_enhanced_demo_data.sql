@@ -7,7 +7,7 @@
 -- Adds diverse medical orders showcasing system capabilities
 
 -- =====================================================
--- 1. ADD MISSING COLUMNS TO PROVIDER_PROFILES
+-- 1. ADD MISSING COLUMNS TO TABLES
 -- =====================================================
 
 -- Add columns for enhanced provider information if they don't exist
@@ -15,6 +15,12 @@ ALTER TABLE provider_profiles
 ADD COLUMN IF NOT EXISTS years_experience INTEGER,
 ADD COLUMN IF NOT EXISTS bio TEXT,
 ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
+
+-- Add columns for patient medical information if they don't exist
+ALTER TABLE patient_profiles
+ADD COLUMN IF NOT EXISTS medical_conditions TEXT[],
+ADD COLUMN IF NOT EXISTS allergies TEXT[],
+ADD COLUMN IF NOT EXISTS current_medications TEXT[];
 
 -- =====================================================
 -- 2. CREATE CAREGIVER RELATIONSHIPS TABLE
