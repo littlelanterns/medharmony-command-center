@@ -213,16 +213,28 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
       const locations = Array.from(locationSchedules.keys());
       const allStaff = ['Lisa Chen', 'Mark Johnson', 'Amy Wu'];
 
-      // Build preferred time
-      const preferredHour = preferredTimes.includes('morning') ? 7 :
-                           preferredTimes.includes('afternoon') ? 13 : 8;
+      // Build preferred time based on provider schedules (use actual business hours)
+      // Provider schedules are typically 7AM-6PM, so let's use sensible times
+      const preferredHour = preferredTimes.includes('morning') ? 9 :
+                           preferredTimes.includes('afternoon') ? 14 : 10;
+
+      // Helper to create proper datetime string without timezone issues
+      const createAppointmentTime = (date: Date, hour: number, minute: number) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hourStr = String(hour).padStart(2, '0');
+        const minStr = String(minute).padStart(2, '0');
+        // Return in local time format that matches provider schedules
+        return `${year}-${month}-${day}T${hourStr}:${minStr}:00`;
+      };
 
       // Return mock data for demo purposes
       return NextResponse.json({
         options: [
           {
             rank: 1,
-            datetime: new Date(availableDates[0].setHours(preferredHour, 45, 0)).toISOString(),
+            datetime: createAppointmentTime(availableDates[0], preferredHour, 0),
             location: locations[0] || "MedHarmony Labs - Main St",
             staffAssigned: `${allStaff[0]}, Phlebotomist`,
             reasoning: `Earliest available ${preferredTimes[0] || 'morning'} slot that meets all your requirements and avoids your blocked times`,
@@ -240,7 +252,7 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
           },
           {
             rank: 2,
-            datetime: new Date(availableDates[1].setHours(preferredHour + 1, 30, 0)).toISOString(),
+            datetime: createAppointmentTime(availableDates[1], preferredHour + 2, 30),
             location: locations[1] || "MedHarmony Labs - Oak Ave",
             staffAssigned: `${allStaff[1]}, Phlebotomist`,
             reasoning: "Slightly later option with more time to prepare, still respects your preferences",
@@ -258,7 +270,7 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks):
           },
           {
             rank: 3,
-            datetime: new Date(availableDates[2].setHours(preferredHour, 0, 0)).toISOString(),
+            datetime: createAppointmentTime(availableDates[2], preferredHour + 1, 15),
             location: locations[2] || locations[0] || "MedHarmony Labs - Riverside",
             staffAssigned: `${allStaff[2]}, Phlebotomist`,
             reasoning: "Most flexible timing with a full week to prepare, end-of-week convenience",
