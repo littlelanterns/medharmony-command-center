@@ -126,7 +126,7 @@ INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) V
   ('10000000-0000-0000-0000-000000000007',
    'Family Medicine',
    8,
-   'Family physician providing comprehensive care for all ages. Special interests in preventive medicine, women\'s health, and chronic disease management.',
+   'Family physician providing comprehensive care for all ages. Special interests in preventive medicine, women''s health, and chronic disease management.',
    true)
 ON CONFLICT (id) DO NOTHING;
 
