@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendNotification, notificationTemplates } from '@/lib/notifications/send';
 
 const getSupabaseAdmin = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -133,19 +134,36 @@ export async function POST(request: NextRequest) {
           : 'Scheduled appointment promptly',
       });
 
-    // Create notification for provider
+    // Send notification to provider (in-app + email/SMS based on preferences)
     if (providerId) {
-      await supabaseAdmin
-        .from('notifications')
-        .insert({
-          user_id: providerId,
-          notification_type: 'appointment_scheduled',
-          title: 'Patient Scheduled Appointment',
-          message: `Patient has scheduled their appointment`,
-          related_appointment_id: appointment.id,
-          priority: 'normal',
-          is_read: false,
-        });
+      const { data: patientData } = await supabaseAdmin
+        .from('users')
+        .select('full_name')
+        .eq('id', patientId)
+        .single();
+
+      const { data: orderData } = await supabaseAdmin
+        .from('orders')
+        .select('title')
+        .eq('id', orderId)
+        .single();
+
+      const appointmentDate = new Date(scheduledStart).toLocaleString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      await sendNotification({
+        userId: providerId,
+        ...notificationTemplates.appointmentBooked({
+          patientName: patientData?.full_name || 'Patient',
+          appointmentTime: appointmentDate,
+          orderTitle: orderData?.title || 'appointment',
+        }),
+      });
     }
 
     return NextResponse.json({ appointment, success: true });
