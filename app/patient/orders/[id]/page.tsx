@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/shared/Header';
 import Card from '@/components/ui/Card';
@@ -13,7 +13,9 @@ import { AIScheduleOption } from '@/lib/types';
 export default function OrderDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const orderId = params.id as string;
+  const autoSchedule = searchParams.get('autoSchedule') === 'true';
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,28 @@ export default function OrderDetailPage() {
 
   const handleBookOption = async (option: AIScheduleOption) => {
     try {
+      // Check if there's an existing appointment
+      const existingAppointment = order.appointments?.find(
+        (apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed'
+      );
+
+      if (existingAppointment) {
+        const oldApptTime = new Date(existingAppointment.scheduled_start).toLocaleString();
+        const newApptTime = new Date(option.datetime).toLocaleString();
+
+        const confirmed = window.confirm(
+          `⚠️ RESCHEDULE CONFIRMATION\n\n` +
+          `Your current appointment:\n${oldApptTime}\n\n` +
+          `Will be AUTOMATICALLY CANCELLED and replaced with:\n${newApptTime}\n\n` +
+          `Karma will be adjusted based on how much notice you're giving.\n\n` +
+          `Do you want to proceed?`
+        );
+
+        if (!confirmed) {
+          return; // User cancelled the reschedule
+        }
+      }
+
       // Calculate appointment end time (30 minutes after start)
       const startTime = new Date(option.datetime);
       const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
@@ -64,9 +88,10 @@ export default function OrderDetailPage() {
       const result = await response.json();
 
       if (result.success) {
-        alert(
-          'Appointment scheduled successfully! You earned +' + option.karmaBonus + ' karma points.'
-        );
+        const message = existingAppointment
+          ? 'Appointment rescheduled successfully! Karma has been adjusted.'
+          : `Appointment scheduled successfully! You earned +${option.karmaBonus} karma points.`;
+        alert(message);
         router.push('/patient');
       } else {
         alert('Error booking appointment: ' + (result.error || 'Unknown error'));
@@ -170,28 +195,49 @@ export default function OrderDetailPage() {
         {isScheduled && order.appointments && order.appointments.length > 0 && (
           <div className="mb-6">
             <Card>
-              <h3 className="text-xl font-bold mb-4">Appointment Details</h3>
-              {order.appointments.map((appt: any) => (
-                <AppointmentCard key={appt.id} appointment={appt} showTitle={false} />
-              ))}
+              <h3 className="text-xl font-bold mb-4">Current Appointment</h3>
+              {order.appointments
+                .filter((appt: any) => appt.status === 'scheduled' || appt.status === 'confirmed')
+                .map((appt: any) => (
+                  <AppointmentCard key={appt.id} appointment={appt} showTitle={false} />
+                ))}
             </Card>
           </div>
         )}
 
-        {/* AI Scheduling Section */}
-        {!isScheduled && (
-          <AIScheduler
-            orderId={order.id}
-            userId={user.id}
-            orderDetails={{
-              type: order.order_type,
-              title: order.title,
-              priority: order.priority,
-            }}
-            prerequisites={order.prerequisites || []}
-            onOptionSelected={handleBookOption}
-          />
+        {/* Reschedule Warning Banner */}
+        {isScheduled && order.appointments?.some((apt: any) => apt.status === 'scheduled' || apt.status === 'confirmed') && (
+          <div className="mb-6 bg-orange-50 border-2 border-orange-300 rounded-xl p-6">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">⚠️</span>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-orange-900 mb-2">Rescheduling Mode</h3>
+                <p className="text-orange-800 mb-3">
+                  You already have an appointment scheduled. If you select a new time below, your current appointment will be <strong>automatically cancelled</strong> and replaced with the new time.
+                </p>
+                <p className="text-orange-700 text-sm">
+                  ✓ Karma will be adjusted based on how much notice you're giving<br/>
+                  ✓ You'll be asked to confirm before the change is finalized<br/>
+                  ✓ Your current appointment remains until you book a new one
+                </p>
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* AI Scheduling Section - Always show for easy rescheduling */}
+        <AIScheduler
+          orderId={order.id}
+          userId={user.id}
+          orderDetails={{
+            type: order.order_type,
+            title: order.title,
+            priority: order.priority,
+          }}
+          prerequisites={order.prerequisites || []}
+          onOptionSelected={handleBookOption}
+          autoRun={autoSchedule}
+        />
       </main>
     </div>
   );

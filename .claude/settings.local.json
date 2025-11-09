@@ -9,7 +9,14 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(nul)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(node test-karma.js:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd fixed database migrations for provider schedules and integration support\n\nFixed Migration Issues:\n- Removed problematic GIST overlap constraint that required btree_gist extension\n- Added IF NOT EXISTS checks to prevent errors on re-run\n- Added proper error handling for missing tables\n- Added ON CONFLICT DO NOTHING for idempotent inserts\n\nMigration 004 (Provider Schedules):\n- Creates provider_schedules table with all necessary fields\n- Seeds Dr. Sarah Jones with schedules at 3 lab locations\n- Includes staff assignments, hours, and location details\n- Safe to run multiple times\n\nMigration 005 (Integration Support):\n- Adds integration fields to provider_schedules table\n- Creates integration_credentials table for OAuth tokens\n- Creates sync_log table for audit trail\n- Validates provider_schedules exists before proceeding\n- Handles constraint additions gracefully\n\nDatabase Status:\n- Both migrations tested and verified working in Supabase\n- Provider availability management UI now has real data\n- AI scheduling can use actual provider schedules\n- Integration architecture fully supported in database\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

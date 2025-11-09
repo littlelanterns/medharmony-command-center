@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import StatusBadge from '@/components/shared/StatusBadge';
 import AppointmentCard from '@/components/patient/AppointmentCard';
+import CancellationAlertCard from '@/components/patient/CancellationAlertCard';
 
 export default function PatientDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -15,6 +16,7 @@ export default function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [hasPreferences, setHasPreferences] = useState(false);
+  const [cancellationAlerts, setCancellationAlerts] = useState<any[]>([]);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -59,10 +61,20 @@ export default function PatientDashboard() {
       .eq('is_active', true)
       .limit(1);
 
+    // Load cancellation alerts (high priority notifications)
+    const { data: alertsData } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', patientId)
+      .eq('notification_type', 'cancellation_alert')
+      .eq('is_read', false)
+      .order('created_at', { ascending: false });
+
     if (ordersData) setOrders(ordersData);
     if (apptData) setAppointments(apptData);
     if (patientData) setKarmaScore(patientData.karma_score);
     setHasPreferences((prefsData?.length || 0) > 0);
+    if (alertsData) setCancellationAlerts(alertsData);
     setLoading(false);
   };
 
@@ -147,6 +159,16 @@ export default function PatientDashboard() {
             </div>
           </div>
         )}
+
+        {/* Cancellation Alerts - Show first! */}
+        {cancellationAlerts.map((alert) => (
+          <CancellationAlertCard
+            key={alert.id}
+            notification={alert}
+            patientId={user?.id || ''}
+            onClaimed={() => loadData(user?.id)}
+          />
+        ))}
 
         {/* Alert for unscheduled orders */}
         {unscheduledOrders.length > 0 && (

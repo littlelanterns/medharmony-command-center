@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { AIScheduleOption } from '@/lib/types';
@@ -14,6 +14,7 @@ interface AISchedulerProps {
   };
   prerequisites: any[];
   onOptionSelected: (option: AIScheduleOption) => void;
+  autoRun?: boolean; // Auto-trigger scheduling on mount
 }
 
 export default function AIScheduler({
@@ -22,11 +23,19 @@ export default function AIScheduler({
   orderDetails,
   prerequisites,
   onOptionSelected,
+  autoRun = false,
 }: AISchedulerProps) {
-  const [schedulingMode, setSchedulingMode] = useState(false);
+  const [schedulingMode, setSchedulingMode] = useState(autoRun);
   const [aiOptions, setAiOptions] = useState<AIScheduleOption[] | null>(null);
   const [generatingOptions, setGeneratingOptions] = useState(false);
   const [bookingAppointment, setBookingAppointment] = useState(false);
+
+  // Auto-trigger AI scheduling if autoRun is true (reschedule scenario)
+  useEffect(() => {
+    if (autoRun && !aiOptions && !generatingOptions) {
+      handleAISchedule();
+    }
+  }, [autoRun]);
 
   const handleAISchedule = async () => {
     setGeneratingOptions(true);

@@ -14,6 +14,8 @@ interface AppointmentCardProps {
 
 export default function AppointmentCard({ appointment, showTitle = true, onConfirm }: AppointmentCardProps) {
   const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -34,6 +36,52 @@ export default function AppointmentCard({ appointment, showTitle = true, onConfi
       alert('Error confirming appointment');
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    const confirmed = window.confirm(
+      'Reschedule this appointment? You\'ll see 3 new time options to choose from. Your current appointment will remain until you book a new one.'
+    );
+
+    if (!confirmed) return;
+
+    // Redirect to AI scheduler with auto-run parameter
+    window.location.href = `/patient/orders/${appointment.order_id}?autoSchedule=true`;
+  };
+
+  const handleCancel = async () => {
+    const confirmed = window.confirm(
+      'Cancel this appointment completely? The slot will be offered to other patients. If you just need a different time, use "Reschedule" instead.'
+    );
+
+    if (!confirmed) return;
+
+    setCancelling(true);
+    try {
+      const response = await fetch(`/api/appointments/${appointment.id}/cancel`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        let message = `Appointment cancelled successfully!\n\n`;
+        message += `${data.reason}\n`;
+        message += `Karma change: ${data.karmaChange > 0 ? '+' : ''}${data.karmaChange} points\n`;
+        message += `Notice given: ${data.hoursNotice} hours\n\n`;
+        message += `This slot has been released to other patients.`;
+
+        alert(message);
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to cancel appointment. Please try again.');
+      }
+    } catch (error) {
+      console.error('Cancellation error:', error);
+      alert('Error cancelling appointment');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -138,6 +186,40 @@ export default function AppointmentCard({ appointment, showTitle = true, onConfi
         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-sm text-green-800 font-semibold">
             ✓ Confirmed on {new Date(appointment.confirmed_at).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+
+      {/* Reschedule & Cancel Buttons - only show if appointment is scheduled or confirmed */}
+      {(appointment.status === 'scheduled' || appointment.status === 'confirmed') && hoursUntil > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={handleReschedule}
+              disabled={rescheduling}
+              className="flex-1 px-4 py-2 bg-teal-50 text-teal-700 font-semibold rounded-lg hover:bg-teal-100 transition disabled:opacity-50 border border-teal-200"
+            >
+              {rescheduling ? 'Opening...' : '🔄 Reschedule'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="flex-1 px-4 py-2 bg-red-50 text-red-700 font-semibold rounded-lg hover:bg-red-100 transition disabled:opacity-50 border border-red-200"
+            >
+              {cancelling ? 'Cancelling...' : '❌ Cancel'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 text-center">
+            {hoursUntil >= 72
+              ? '✓ Changing now: +5 karma (72+ hours notice)'
+              : hoursUntil >= 24
+              ? '✓ Changing now: +2 karma (24-72 hours notice)'
+              : hoursUntil >= 2
+              ? '⚠️ Changing now: -3 karma (less than 24 hours)'
+              : '⚠️ Changing now: -10 karma (less than 2 hours)'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1 text-center">
+            Reschedule keeps your appointment until you pick a new time. Cancel releases it to others.
           </p>
         </div>
       )}

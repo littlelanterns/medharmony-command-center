@@ -3,33 +3,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
-const COMMON_PREREQUISITES = {
-  lab: [
-    { id: 'fasting_8h', type: 'fasting', description: 'Fast for 8 hours before appointment' },
-    { id: 'stop_blood_thinner', type: 'medication_stop', description: 'Stop blood thinner medication 24 hours before' },
-    { id: 'morning_preferred', type: 'preparation', description: 'Morning appointment preferred (for fasting compliance)' },
-    { id: 'bring_insurance', type: 'bring_documents', description: 'Bring insurance card and ID' },
-    { id: 'hydration', type: 'hydration', description: 'Drink plenty of water before appointment' },
-  ],
-  imaging: [
-    { id: 'remove_metal', type: 'preparation', description: 'Remove all metal objects and jewelry' },
-    { id: 'no_lotions', type: 'preparation', description: 'Do not wear lotions or deodorant' },
-    { id: 'bring_insurance', type: 'bring_documents', description: 'Bring insurance card and ID' },
-    { id: 'pregnancy_check', type: 'preparation', description: 'Inform if pregnant or possibly pregnant' },
-  ],
-  procedure: [
-    { id: 'fasting_12h', type: 'fasting', description: 'Fast for 12 hours before procedure' },
-    { id: 'bring_insurance', type: 'bring_documents', description: 'Bring insurance card and ID' },
-    { id: 'arrange_ride', type: 'preparation', description: 'Arrange for someone to drive you home' },
-    { id: 'stop_medications', type: 'medication_stop', description: 'Stop blood thinners as instructed' },
-  ],
-};
-
 export default function CreateOrderPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAISuggestions, setLoadingAISuggestions] = useState(false);
 
   const [formData, setFormData] = useState({
     patientId: '',
@@ -41,6 +20,7 @@ export default function CreateOrderPage() {
     estimatedRevenue: 200,
   });
 
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{ type: string; description: string }>>([]);
   const [selectedPrerequisites, setSelectedPrerequisites] = useState<string[]>([]);
   const [customPrerequisites, setCustomPrerequisites] = useState<Array<{ description: string }>>([]);
   const [customNotes, setCustomNotes] = useState('');
@@ -50,6 +30,11 @@ export default function CreateOrderPage() {
     setUser(userData);
     loadPatients();
   }, []);
+
+  // Fetch AI suggestions when order type or title changes
+  useEffect(() => {
+    fetchAISuggestions();
+  }, [formData.orderType, formData.title]);
 
   const loadPatients = async () => {
     const { data } = await supabase
@@ -61,11 +46,38 @@ export default function CreateOrderPage() {
     if (data) setPatients(data);
   };
 
-  const handlePrerequisiteToggle = (prereqId: string) => {
+  const fetchAISuggestions = async () => {
+    setLoadingAISuggestions(true);
+    setSelectedPrerequisites([]); // Reset selections when suggestions change
+
+    try {
+      const response = await fetch('/api/ai/suggest-prerequisites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderType: formData.orderType,
+          title: formData.title,
+          description: formData.description
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.suggestions) {
+        setAiSuggestions(data.suggestions);
+      }
+    } catch (error) {
+      console.error('Error fetching AI suggestions:', error);
+    } finally {
+      setLoadingAISuggestions(false);
+    }
+  };
+
+  const handlePrerequisiteToggle = (prereqIndex: string) => {
     setSelectedPrerequisites(prev =>
-      prev.includes(prereqId)
-        ? prev.filter(id => id !== prereqId)
-        : [...prev, prereqId]
+      prev.includes(prereqIndex)
+        ? prev.filter(id => id !== prereqIndex)
+        : [...prev, prereqIndex]
     );
   };
 
@@ -88,11 +100,10 @@ export default function CreateOrderPage() {
     setLoading(true);
 
     try {
-      // Build prerequisites array
-      const availablePrereqs = COMMON_PREREQUISITES[formData.orderType as keyof typeof COMMON_PREREQUISITES] || [];
+      // Build prerequisites array from AI suggestions
       const prerequisites = [
-        ...availablePrereqs
-          .filter(p => selectedPrerequisites.includes(p.id))
+        ...aiSuggestions
+          .filter((_, index) => selectedPrerequisites.includes(String(index)))
           .map(p => ({ type: p.type, description: p.description, isRequired: true })),
         ...customPrerequisites
           .filter(p => p.description.trim())
@@ -131,8 +142,6 @@ export default function CreateOrderPage() {
       setLoading(false);
     }
   };
-
-  const availablePrereqs = COMMON_PREREQUISITES[formData.orderType as keyof typeof COMMON_PREREQUISITES] || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,22 +235,35 @@ export default function CreateOrderPage() {
 
           {/* Prerequisites */}
           <div className="mb-6">
-            <label className="block text-gray-700 font-semibold mb-3">Prerequisites</label>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-              {availablePrereqs.map(prereq => (
-                <label key={prereq.id} className="flex items-start cursor-pointer hover:bg-white p-2 rounded transition">
-                  <input
-                    type="checkbox"
-                    checked={selectedPrerequisites.includes(prereq.id)}
-                    onChange={() => handlePrerequisiteToggle(prereq.id)}
-                    className="mt-1 mr-3"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-800">{prereq.description}</div>
-                    <div className="text-sm text-gray-500">Type: {prereq.type}</div>
-                  </div>
-                </label>
-              ))}
+            <label className="block text-gray-700 font-semibold mb-3">
+              AI-Suggested Prerequisites
+              {loadingAISuggestions && <span className="ml-2 text-sm text-gray-500">(Loading...)</span>}
+            </label>
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 space-y-3 border border-purple-200">
+              {loadingAISuggestions ? (
+                <div className="text-center py-4 text-gray-600">
+                  <div className="animate-pulse">🤖 AI is analyzing your order and suggesting prerequisites...</div>
+                </div>
+              ) : aiSuggestions.length > 0 ? (
+                aiSuggestions.map((prereq, index) => (
+                  <label key={index} className="flex items-start cursor-pointer hover:bg-white p-3 rounded-lg transition shadow-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedPrerequisites.includes(String(index))}
+                      onChange={() => handlePrerequisiteToggle(String(index))}
+                      className="mt-1 mr-3 w-5 h-5 text-purple-600"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-800">{prereq.description}</div>
+                      <div className="text-xs text-purple-600 mt-1">✨ AI-suggested • Type: {prereq.type}</div>
+                    </div>
+                  </label>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  No suggestions available. Add custom prerequisites below.
+                </div>
+              )}
 
               {customPrerequisites.map((prereq, index) => (
                 <div key={index} className="flex gap-2">

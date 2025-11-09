@@ -23,7 +23,58 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Create appointment
+    // Check if there's an existing appointment for this order (reschedule scenario)
+    const { data: existingAppointments } = await supabaseAdmin
+      .from('appointments')
+      .select('*')
+      .eq('order_id', orderId)
+      .in('status', ['scheduled', 'confirmed']);
+
+    let rescheduleKarma = 0;
+    let rescheduleReason = '';
+
+    if (existingAppointments && existingAppointments.length > 0) {
+      // This is a reschedule! Cancel the old appointment first
+      const oldAppointment = existingAppointments[0];
+
+      // Calculate karma for rescheduling
+      const now = new Date();
+      const oldAppointmentTime = new Date(oldAppointment.scheduled_start);
+      const hoursUntil = (oldAppointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (hoursUntil >= 72) {
+        rescheduleKarma = 5;
+        rescheduleReason = 'Rescheduled with 72+ hours notice';
+      } else if (hoursUntil >= 24) {
+        rescheduleKarma = 2;
+        rescheduleReason = 'Rescheduled with 24-72 hours notice';
+      } else if (hoursUntil >= 2) {
+        rescheduleKarma = -3;
+        rescheduleReason = 'Late reschedule (less than 24hrs)';
+      } else {
+        rescheduleKarma = -10;
+        rescheduleReason = 'Very late reschedule (less than 2hrs)';
+      }
+
+      // Cancel old appointment
+      await supabaseAdmin
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', oldAppointment.id);
+
+      // Log reschedule karma
+      await supabaseAdmin
+        .from('karma_history')
+        .insert({
+          patient_id: patientId,
+          action_type: 'rescheduled_appointment',
+          points_change: rescheduleKarma,
+          related_appointment_id: oldAppointment.id,
+          description: rescheduleReason
+        });
+    }
+
+    // Create new appointment
     const { data: appointment, error: apptError } = await supabaseAdmin
       .from('appointments')
       .insert({
@@ -51,7 +102,10 @@ export async function POST(request: NextRequest) {
       .update({ status: 'scheduled' })
       .eq('id', orderId);
 
-    // Award karma points for scheduling (do it manually since RPC might not exist)
+    // Award karma points for scheduling
+    const bookingKarma = 5;
+    const totalKarma = rescheduleKarma + bookingKarma;
+
     const { data: profile } = await supabaseAdmin
       .from('patient_profiles')
       .select('karma_score')
@@ -59,21 +113,24 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (profile) {
+      const newKarma = Math.max(0, Math.min(100, profile.karma_score + totalKarma));
       await supabaseAdmin
         .from('patient_profiles')
-        .update({ karma_score: profile.karma_score + 5 })
+        .update({ karma_score: newKarma })
         .eq('id', patientId);
     }
 
-    // Create karma history entry
+    // Create karma history entry for new booking
     await supabaseAdmin
       .from('karma_history')
       .insert({
         patient_id: patientId,
         action_type: 'scheduled_appointment',
-        points_change: 5,
+        points_change: bookingKarma,
         related_appointment_id: appointment.id,
-        description: 'Scheduled appointment promptly',
+        description: existingAppointments && existingAppointments.length > 0
+          ? `Rescheduled successfully (${rescheduleReason})`
+          : 'Scheduled appointment promptly',
       });
 
     // Create notification for provider

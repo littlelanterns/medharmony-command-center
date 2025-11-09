@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import BlockTimeModal from '@/components/provider/BlockTimeModal';
 
 interface Schedule {
   id?: string;
@@ -33,6 +34,7 @@ export default function ProviderAvailabilityPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [locations, setLocations] = useState<string[]>(['MedHarmony Labs - Main St', 'MedHarmony Labs - Oak Ave', 'MedHarmony Labs - Riverside']);
   const [newLocation, setNewLocation] = useState('');
+  const [showBlockTimeModal, setShowBlockTimeModal] = useState(false);
 
   const [editingSchedule, setEditingSchedule] = useState<Schedule>({
     location: 'MedHarmony Labs - Main St',
@@ -205,6 +207,19 @@ export default function ProviderAvailabilityPage() {
       </header>
 
       <main className="max-w-6xl mx-auto p-8">
+        {/* Block Time Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowBlockTimeModal(true)}
+            className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold rounded-lg hover:from-red-600 hover:to-orange-600 transition shadow-lg"
+          >
+            🚫 Block Time (Vacation, Sick Day, etc.)
+          </button>
+          <p className="text-sm text-gray-600 mt-2">
+            Mark yourself unavailable. Affected patients will be automatically notified to reschedule.
+          </p>
+        </div>
+
         {/* Current Schedules Overview */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">Current Availability</h2>
@@ -448,6 +463,18 @@ export default function ProviderAvailabilityPage() {
           </div>
         </div>
       </main>
+
+      {/* Block Time Modal */}
+      {showBlockTimeModal && (
+        <BlockTimeModal
+          providerId={user?.id || ''}
+          onClose={() => setShowBlockTimeModal(false)}
+          onSuccess={() => {
+            // Optionally reload schedules or show confirmation
+            console.log('Time blocked successfully');
+          }}
+        />
+      )}
     </div>
   );
 }
