@@ -7,7 +7,17 @@
 -- Adds diverse medical orders showcasing system capabilities
 
 -- =====================================================
--- 1. CREATE CAREGIVER RELATIONSHIPS TABLE
+-- 1. ADD MISSING COLUMNS TO PROVIDER_PROFILES
+-- =====================================================
+
+-- Add columns for enhanced provider information if they don't exist
+ALTER TABLE provider_profiles
+ADD COLUMN IF NOT EXISTS years_experience INTEGER,
+ADD COLUMN IF NOT EXISTS bio TEXT,
+ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
+
+-- =====================================================
+-- 2. CREATE CAREGIVER RELATIONSHIPS TABLE
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS caregiver_relationships (
@@ -26,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_caregiver_relationships_caregiver ON caregiver_re
 CREATE INDEX IF NOT EXISTS idx_caregiver_relationships_patient ON caregiver_relationships(patient_id);
 
 -- =====================================================
--- 2. ADD 9 SPECIALIST DOCTORS
+-- 3. ADD 9 SPECIALIST DOCTORS
 -- =====================================================
 
 -- Dr. Raj Patel - Pediatrician
@@ -147,7 +157,7 @@ INSERT INTO provider_profiles (id, specialty, years_experience, bio, verified) V
 ON CONFLICT (id) DO NOTHING;
 
 -- =====================================================
--- 3. ADD JENNIFER MARTINEZ'S FAMILY
+-- 4. ADD JENNIFER MARTINEZ'S FAMILY
 -- =====================================================
 
 -- Jennifer Martinez (Caregiver - Mother managing family healthcare)
@@ -212,7 +222,7 @@ INSERT INTO patient_profiles (id, date_of_birth, medical_conditions, allergies, 
 ON CONFLICT (id) DO NOTHING;
 
 -- =====================================================
--- 4. CREATE CAREGIVER RELATIONSHIPS
+-- 5. CREATE CAREGIVER RELATIONSHIPS
 -- =====================================================
 
 INSERT INTO caregiver_relationships (caregiver_id, patient_id, relationship_type, permission_level) VALUES
@@ -223,7 +233,7 @@ INSERT INTO caregiver_relationships (caregiver_id, patient_id, relationship_type
 ON CONFLICT (caregiver_id, patient_id) DO NOTHING;
 
 -- =====================================================
--- 5. CREATE MEDICAL ORDERS FOR FAMILY
+-- 6. CREATE MEDICAL ORDERS FOR FAMILY
 -- =====================================================
 
 -- Emma's Orders (Type 1 Diabetes management)
@@ -361,7 +371,7 @@ UPDATE orders SET prerequisites = ARRAY[
 ] WHERE id = '30000000-0000-0000-0000-000000000008';
 
 -- =====================================================
--- 6. ADD PROVIDER SCHEDULES FOR NEW DOCTORS
+-- 7. ADD PROVIDER SCHEDULES FOR NEW DOCTORS
 -- =====================================================
 
 -- Dr. Raj Patel - Pediatrics (Monday-Friday, Children's Hospital)
@@ -445,7 +455,7 @@ INSERT INTO provider_schedules (provider_id, location, day_of_week, start_time, 
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- 7. SET NOTIFICATION PREFERENCES FOR MARGARET (Voice-First)
+-- 8. SET NOTIFICATION PREFERENCES FOR MARGARET (Voice-First)
 -- =====================================================
 
 -- Margaret prefers voice calls over SMS/email
