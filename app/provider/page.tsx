@@ -75,7 +75,9 @@ export default function ProviderDashboard() {
     <div className="min-h-screen bg-gray-50">
       <Header
         title="Provider Dashboard"
-        userName={user?.name || 'Dr. Jones'}
+        userName={user?.full_name || user?.name || 'Dr. Jones'}
+        userId={user?.id}
+        userRole="provider"
         actionButton={{
           label: '+ Create New Order',
           href: '/provider/orders/new',

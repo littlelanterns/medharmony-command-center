@@ -129,7 +129,9 @@ export default function PatientDashboard() {
     <div className="min-h-screen bg-gray-50">
       <Header
         title="Patient Dashboard"
-        userName={user?.name || 'Patient'}
+        userName={user?.full_name || user?.name || 'Patient'}
+        userId={user?.id}
+        userRole="patient"
         actionButton={{
           label: hasPreferences ? 'Update My Availability' : 'Set My Availability',
           href: '/patient/preferences',

@@ -1,9 +1,13 @@
+'use client';
+
 import Link from 'next/link';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
   userName?: string;
+  userId?: string;
   userRole?: 'provider' | 'patient';
   actionButton?: {
     label: string;
@@ -20,6 +24,7 @@ export default function Header({
   title,
   subtitle,
   userName,
+  userId,
   userRole,
   actionButton,
   backButton,
@@ -54,18 +59,26 @@ export default function Header({
             )}
           </div>
 
-          {actionButton && (
-            <Link
-              href={actionButton.href}
-              className={
-                actionButton.variant === 'secondary'
-                  ? 'btn-primary bg-white text-[#002C5F] hover:bg-gray-100'
-                  : 'btn-primary'
-              }
-            >
-              {actionButton.label}
-            </Link>
-          )}
+          <div className="flex items-center gap-4">
+            {/* Notification Bell */}
+            {userId && userRole && (
+              <NotificationBell userId={userId} userRole={userRole} />
+            )}
+
+            {/* Action Button */}
+            {actionButton && (
+              <Link
+                href={actionButton.href}
+                className={
+                  actionButton.variant === 'secondary'
+                    ? 'btn-primary bg-white text-[#002C5F] hover:bg-gray-100'
+                    : 'btn-primary'
+                }
+              >
+                {actionButton.label}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </header>
