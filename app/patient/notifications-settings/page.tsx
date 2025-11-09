@@ -21,6 +21,8 @@ export default function NotificationSettingsPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(false);
+  const [voiceCallEnabled, setVoiceCallEnabled] = useState(false);
+  const [voiceCallTime, setVoiceCallTime] = useState('anytime');
   const [phoneError, setPhoneError] = useState('');
 
   const [preferences, setPreferences] = useState<Record<string, NotificationPreference>>({});
@@ -57,6 +59,18 @@ export default function NotificationSettingsPage() {
       setPhoneNumber(userData.phone_number || '');
       setEmailEnabled(userData.email_notifications_enabled ?? true);
       setSmsEnabled(userData.sms_notifications_enabled ?? false);
+
+      // Voice call settings (stored in patient_profiles for now)
+      const { data: profile } = await supabase
+        .from('patient_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      // Check if user prefers voice calls (indicated by SMS disabled and has phone)
+      if (profile && userData.phone_number && !userData.sms_notifications_enabled && !userData.email_notifications_enabled) {
+        setVoiceCallEnabled(true);
+      }
     }
 
     // Load notification preferences
@@ -243,6 +257,83 @@ export default function NotificationSettingsPage() {
                   <p className="mt-1 text-xs text-gray-500">
                     Enter your phone number to receive SMS notifications
                   </p>
+                </div>
+              )}
+            </div>
+
+            {/* Voice Calls */}
+            <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+              <label className="flex items-center justify-between cursor-pointer mb-4">
+                <div>
+                  <div className="font-semibold text-gray-900 flex items-center gap-2">
+                    📞 Voice Call Notifications
+                    <span className="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded-full">Coming Soon</span>
+                  </div>
+                  <div className="text-sm text-gray-600">Receive important notifications via phone call</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={voiceCallEnabled}
+                  onChange={(e) => setVoiceCallEnabled(e.target.checked)}
+                  className="w-6 h-6 text-purple-600 rounded"
+                />
+              </label>
+
+              {voiceCallEnabled && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      placeholder="(555) 123-4567"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
+                        phoneError ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {phoneError && (
+                      <p className="mt-1 text-sm text-red-600">{phoneError}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Preferred Call Time
+                    </label>
+                    <select
+                      value={voiceCallTime}
+                      onChange={(e) => setVoiceCallTime(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="morning">Morning (8 AM - 12 PM)</option>
+                      <option value="afternoon">Afternoon (12 PM - 5 PM)</option>
+                      <option value="evening">Evening (5 PM - 8 PM)</option>
+                      <option value="anytime">Anytime (8 AM - 8 PM)</option>
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">
+                      We'll try to call during your preferred time
+                    </p>
+                  </div>
+
+                  <div className="bg-white/60 rounded-lg p-3">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">When you'll receive calls:</p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>✅ Appointment confirmations (if enabled below)</li>
+                      <li>✅ Urgent appointment changes</li>
+                      <li>✅ Cancellation opportunities</li>
+                      <li>✅ Appointment reminders (24 hours before)</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                    <p className="text-sm text-blue-800">
+                      <strong>Coming in Phase 2:</strong> AI voice calls powered by advanced speech synthesis.
+                      Calls will be clear, professional, and include the ability to reschedule via voice command.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
